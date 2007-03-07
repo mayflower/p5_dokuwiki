@@ -1,0 +1,696 @@
+foobarblubb bla
+fooo
+[[testme]]
+http://www.heise.de/
+
+<html>
+<div style="background-color: #000000;">
+foobar
+</div>
+</html>
+
+trallala
+
+llkkllkkl
+
+__TOC__
+
+== Aufbau der Seitenaufrufe ==
+
+ etshop/pricelist.php
+ etshop/products.php
+    (via layout.ihtml)
+    <iframe <b>(A)</b> frames/frameset_wo_image.php?mode=priclist
+                                                  products
+       (via frameset_wo_image(_prl).ihtml)
+       <frames>
+          (160) Search
+          (185)
+          (")   content
+          (*)   content_top                    Geräte
+    <b>(B1)</b> <iframe frames/frameset_image.php mit Baugruppe
+    <b>(B2)</b> <iframe frames/frameset_image.php mit Ersatzteile
+
+== Tabellen ==
+
+Es folgen Beschreibungen von einigen ETShop-relevanten Datentabellen:
+
+{| border=1
+ |explode_images
+ |Enthält einen Eintrag für jede Explosionszeichnung. Eine Explosionszeichnung kann folgenden Inhalt haben:
+* alle Baugruppen von einem Gerät
+* alle Einzelteile von einer Baugruppe
+* alle Einzelteile von einem Gerät, dass keine Baugruppen hat
+ |-
+ |image_mapcoords
+ |Enthält alle Hotspots zu einer Explosionszeichnungen. Die Zuordnung zu explode_images erfolgt über die Spalte explode_images.id=image_mapcoords.id
+ |-
+ |image_mapcoords2
+ |Wird m.E. nicht benutzt.
+ |-
+ |kzeichnungen_pool
+ |Wird m.E. nicht benutzt.
+ |}
+
+== Spaltenbezeichnungen in den SAP Dump Files ==
+
+
+
+= DEVICES =
+{| border=1
+ !Spaltenbezeichnung (deutsch)
+ !Spaltenbezeichnung (englisch)
+ !Beispielwert 1
+ !Beispielwert 2
+ |-
+ |Produktgruppe
+ |	product_group
+ |	Gas-Wandheizger344t
+ |	Gas-Wandheizger344t
+ |-
+ |P_ID
+ |	product_group_id
+ |	1
+ |	1
+ |-
+ |Technologie
+ |	technology
+ |	Gas-Wandheizger344t VC Kamin
+ |	Gas-Wandheizger344te Kamin
+ |-
+ |T_ID
+ |	technology_id
+ |	1899
+ |	2723
+ |-
+ |Geraetegruppe
+ |	device_group
+ |	VC 204 XE, VC 254 XE
+ |	VC 110 E
+ |-
+ |G_ID
+ |	device_group_id
+ |	249
+ |	784
+ |-
+ |Einzelgeraet
+ |	device_name
+ |	VC 204 XE
+ |	VC 110 E
+ |-
+ |Dokument
+ |	document_parent
+ |	ET0200043
+ |	ET0200018
+ |-
+ |Bj von
+ |	manufactured_from
+ |	1994
+ |	1983
+ |-
+ |Bj bis
+ |	manufactured_until
+ |	1999
+ |	1995
+ |-
+ |Geraete-Artikelnummern
+ |	article_numbers
+ |	304711;304712;304713	
+ |-
+ |L344nderkennung
+ |	country
+ |	DE TEST
+ |	GO
+ |}
+
+
+		
+= PRICING =
+{| border=1
+ !Spaltenbezeichnung (deutsch)
+ !Spaltenbezeichnung (englisch)
+ !Beispielwert 1
+ !Beispielwert 2
+ |-
+ |Artikel
+ |	mat_nr
+ |	10050
+ |	10003
+ |-
+ |Kurztext
+ |	identification
+ |	Schraube
+ |	Membranschraube
+ |-
+ |Kurztext LV
+ |	shorttext_lv
+ |	Entleerung-Grossg., Abdeckung-LZ-Ventil
+ |	Wasserschalter
+ |-
+ |Materialgruppe
+ |	material_group
+ |	15
+ |	4
+ |-
+ |Materialfindung
+ |	replaced_by
+ |	-	
+ |-
+ |Vertriebsstatus VKO
+ |	distribution_status
+ |	
+ |	
+ |-
+ |g374ltig ab
+ |	g374ltig
+ |	0
+ |	
+ |-
+ |Vkorg
+ |	distribution_org
+ |	1
+ |	7
+ |-
+ |Vtweg
+ |	distribution_channel
+ |	1
+ |	25
+ |-
+ |Sparte
+ |	branch
+ |	51
+ |	51
+ |-
+ |Werk
+ |	plant
+ |	7
+ |	7
+ |-
+ |Standardpreis
+ |	Standardpreis
+ |	0,33
+ |	
+ |-
+ |Kalk.losgr366337e
+ |	Kalk.losgr366337e
+ |	100
+ |	
+ |-
+ |Materialsparte
+ |	Materialsparte
+ |	7
+ |	7
+ |-
+ |Bruttogewicht
+ |	gross_weight
+ |	0,01
+ |	0
+ |-
+ |Nettogewicht
+ |	Nettogewicht
+ |	0,01
+ |	
+ |-
+ |Volumen
+ |	Volumen
+ |	0
+ |	
+ |-
+ |EAN-Nr.
+ |	ean_nr
+ |	4024074043462
+ |	4024074043202
+ |-
+ |Datanorm-Kz.
+ |	Datanorm-Kz.
+ |	20
+ |	
+ |-
+ |Kundenpreis (ZETB)
+ |	customer_price
+ |	1,82
+ |	
+ |-
+ |Grunddatentext
+ |	basic_memo
+ |	
+ |	
+ |-
+ |interner Vermerk
+ |	internal_memo
+ |	
+ |	
+ |}
+
+
+
+= PRODCAT =
+{| border=1
+ !Spaltenbezeichnung (deutsch)
+ !Spaltenbezeichnung (englisch)
+ !Beispielwert 1
+ !Beispielwert 2
+ |-
+ |Dokument
+ |	document
+ |	ET0201002
+ |	ET0204015 
+ |-
+ |ueberg.Dok
+ |	document_parent
+ |	ET0200043
+ |	ET0200018 
+ |-
+ |Posnr
+ |	pos_nr
+ |	1
+ |	1
+ |-
+ |Matnr
+ |	mat_nr
+ |	82424
+ |	183971
+ |-
+ |N
+ |	n
+ |	
+ |	
+ |-
+ |Bezeichnung
+ |	identification
+ |	Flanschplatte
+ |	Verteilerrohr
+ |-
+ |Bemerkung
+ |	description
+ |	
+ |	
+ |-
+ |Zusatztext01
+ |	add_text_01
+ |	mit Pos. 05, 15
+ |	mit Pos. 28
+ |-
+ |Zusatztext02
+ |	add_text_02
+ |	
+ |	
+ |-
+ |Zusatztext03
+ |	add_text_03
+ |	
+ |	
+ |-
+ |Zusatztext04
+ |	add_text_04
+ |	
+ |	
+ |-
+ |Baugruppe
+ |	device_group_element
+ |	01 Vorrangumschaltventil
+ |	04 Brenner
+ |-
+ |Langtext01
+ |	longtext_01
+ |	VC 204 XE
+ |	VC 110 E
+ |-
+ |Langtext02
+ |	longtext_02
+ |	VC 254 XE
+ |	
+ |-
+ |Langtext03
+ |	longtext_03
+ |	
+ |	
+ |-
+ |Langtext04
+ |	longtext_04
+ |	
+ |	
+ |-
+ |Langtext05
+ |	longtext_05
+ |	
+ |	
+ |-
+ |Langtext06
+ |	longtext_06
+ |	
+ |	
+ |-
+ |Langtext07
+ |	longtext_07
+ |	
+ |	
+ |-
+ |Langtext08
+ |	longtext_08
+ |	
+ |	
+ |-
+ |Langtext09
+ |	longtext_09
+ |	
+ |	
+ |-
+ |Langtext10
+ |	longtext_10
+ |	
+ |	
+ |-
+ |Langtext11
+ |	longtext_11
+ |	
+ |	
+ |-
+ |Langtext12
+ |	longtext_12
+ |	
+ |	
+ |-
+ |Langtext13
+ |	longtext_13
+ |	
+ |	
+ |-
+ |Langtext14
+ |	longtext_14
+ |	
+ |	
+ |-
+ |Langtext15
+ |	longtext_15
+ |	
+ |	
+ |-
+ |L344nderkennung
+ |	country
+ |	DE TEST
+ |	GO
+ |}
+
+
+
+= STRUCTURES =
+{| border=1
+ !Spaltenbezeichnung (deutsch)
+ !Spaltenbezeichnung (englisch)
+ !Beispielwert 1
+ !Beispielwert 2
+ |-
+ |lfd.Nr.
+ |	seq_number
+ |	1
+ |	1
+ |-
+ |LayoutEbene
+ |	layout_level
+ |	1
+ |	1
+ |-
+ |LayoutBereich
+ |	layout_area
+ |	1
+ |	1
+ |-
+ |Bezeichnung
+ |	description
+ |	Gas-Wandheizger344t
+ |	Gas-Wandheizger344t
+ |-
+ |L344nderkennung
+ |	country
+ |	DE_TEST
+ |	GO
+ |}
+
+== Erläuterung SAP Dump Files ==
+
+Zuordnung der SAP Dump Dateien zu den ETShop-Tabellen:
+
+{| border=1
+ !Quelle (SAP File)
+ !Bedingung (nur Zeile, bei denen ...)
+ !Ziel (ETShop-Tabelle)
+ !eindeutige Keys
+ !eindeutig für
+
+ |-
+ |structure
+ |LayoutEbene = 1
+ |product_group
+ |LayoutBereich / LayoutArea (= product_group.layout_area)
+ |Produktgruppe
+ |-
+ |
+ |LayoutEbene = 2
+ |technology<br>technology_text
+ |LayoutBereich / LayoutArea (= technology.layout_area)
+ |Technologie
+ |-
+ |
+ |LayoutEbene = 3
+ |device_group
+ |LayoutBereich / LayoutArea (= device_group.layout_area)
+ |Gerätegruppe
+ |-
+ |
+ |LayoutEbene = 4
+ |device_group_elements
+ |LayoutBereich / LayoutArea (= device_group_element.layout_area)
+ |Gerätegruppe
+
+ |-
+ |devices
+ |&nbsp;
+ |device_article<br>device
+ |P_ID<br>T_ID<br>G_ID<br>Einzelgeraet
+ |Produktgruppe<br>Technologie<br>Gerätegruppe<br>Device
+
+ |-
+ |prodcat
+ |&nbsp;
+ |prodcat<br>prodcat_text
+
+ |-
+ |pricing
+ |&nbsp;
+ |pricing<br>pricing_text
+
+ |-
+ |[ohne]
+ |&nbsp;
+ |order_history<br>order_history_items<br>version
+
+ |}
+
+== Spalten mit zu übersetzenden Textstrings ==
+
+sortiert nach Tabellen:
+
+{| border="1"
+ !Tabelle
+ !zu prüfende Spalten, ob Eintrag existiert
+ !zu prüfende Spalten, ob Eintrag verändert (in fett jeweils der GOADMIN_TRANSLATION_INDEX, s. GOAdmin.php)
+ !Spalten, die sich verändert haben, deren Veränderung aber nicht aus Nutzersicht zu erkennen ist
+
+ |- valign="top"
+ |product_group
+ |layout_area
+ |&nbsp;
+ |&nbsp;
+
+ |- valign="top"
+ |technology
+ |layout_area
+ | -
+ |product_group_id
+
+ |- valign="top"
+ |technology_text
+ |technology.layout_area<br>(AND technology_text.id=technology.id)
+ |<b>02</b> technology
+ |&nbsp;
+
+ |- valign="top"
+ |device_group
+ |layout_area
+ | - 
+ |technology_id<br>device_group<br>product_id
+
+ |- valign="top"
+ |device_group_elements
+ |layout_area
+ |<b>03</b> element
+ |device_group_id<br>pos_nr
+
+ |- valign="top"
+ |device_article
+ |article_no
+ | - 
+ |device_id
+
+ |- valign="top"
+ |device
+ |device_name
+ |<b>02</b> technology<br><b>15</b> product_group
+ |device_group_id_sap<br>technology_id_sap<br>product_group_id_sap<br>device_group<br>document_parent<br>article_numbers<br>manufactured_from<br>manufactured_to<br>product_group
+
+ |- valign="top"
+ |prodcat
+ |document<br>document_parent<br>mat_nr<br>pos_nr
+ |<b>03</b> device_group_element<br><b>09</b> identification<br><b>10</b> description<br><b>11</b> add_text_01<br><b>12</b> add_text_02<br><b>13</b> add_text_03<br><b>14</b> add_text_04<br>
+ |&nbsp;
+
+ |- valign="top"
+ |prodcat_text
+ |document<br>document_parent<br>mat_nr<br>pos_nr
+ |<b>09</b> identification<br><b>10</b> description<br><b>11</b> add_text_01<br><b>12</b> add_text_02<br><b>13</b> add_text_03<br><b>14</b> add_text_04<br>
+ |&nbsp;
+
+ |- valign="top"
+ |pricing
+ |mat_nr
+ | - 
+ |&nbsp;
+
+ |- valign="top"
+ |pricing_text
+ |mat_nr
+ |<b>06</b> identification<br><b>07</b> shorttext_lv<br><b>__</b> customer_price
+ |&nbsp;
+
+ |}
+
+
+
+sortiert nach Strings:
+
+{| border="1"
+ !Index
+ !Spalte
+ !Spalte
+
+ |- valign="top"
+ |<b>15</b>
+ |device.product_group
+ |&nbsp;
+
+ |- valign="top"
+ |<b>02</b>
+ |device.technology
+ |technology_text
+
+ |- valign="top"
+ |&nbsp;
+ |&nbsp;
+ |&nbsp;
+
+ |- valign="top"
+ |<b>09</b>
+ |prodcat.identification
+ |prodcat_text.identification
+
+ |- valign="top"
+ |<b>10</b>
+ |prodcat.description
+ |prodcat_text.description
+
+ |- valign="top"
+ |<b>03</b>
+ |prodcat.identification
+ |prodcat_text.identification
+
+ |- valign="top"
+ |<b>11</b>
+ |prodcat.add_text_01
+ |prodcat_text.add_text_01
+
+ |- valign="top"
+ |<b>12</b>
+ |prodcat.add_text_02
+ |prodcat_text.add_text_02
+
+ |- valign="top"
+ |<b>13</b>
+ |prodcat.add_text_03
+ |prodcat_text.add_text_03
+
+ |- valign="top"
+ |<b>14</b>
+ |prodcat.add_text_04
+ |prodcat_text.add_text_04
+
+ |- valign="top"
+ |&nbsp;
+ |&nbsp;
+ |&nbsp;
+
+ |- valign="top"
+ |<b>06</b>
+ |pricing_text.identification
+ |&nbsp;
+
+ |- valign="top"
+ |<b>07</b>
+ |pricing_text.shorttext_lv
+ |&nbsp;
+
+ |- valign="top"
+ |<b>__</b>
+ |(pricing_text.customer_price)
+ |&nbsp;
+
+ |}
+
+
+
+GO-Flags bei folgenden Tabellen benötigt:
+ X wird verwendet
+ . wurde (fälschlicherweise) früher auch noch verwendet
+ 
+   product_group
+ . technology_text
+   device_group
+   device_group_elements
+ X device
+ X prodcat
+   prodcat_text
+ X pricing_text
+
+
+
+Index-Werte (für GOADMIN_TRANSLATION_INDEX), die nicht verwendet werden
+ <b>01</b>
+ <b>05</b>
+ <b>08</b>
+ <b>16</b>, <b>17</b>, ...
+
+== Aufbau von $_stree (in SAPStructurParser_simple.php) ==
+
+                --- structure, row[3], wenn row[1] = 1
+                |
+                |
+                |                        --- structure, row[3], wenn row[1] = 2
+                |                        |
+                |                        |
+                V                        |                    --- productgroup, technology, device_group (z.B. b28a8...)
+ _stree[Gas-Wandheizgerät]               V                    |
+                          [Gas-Wandheizgerät VC Brennwert]    V
+                                                          [md5hash]
+                                                        ?          [product_group_count]
+                                                        ?          [technology]
+                                                                   [device_group_count]
+                                                                   [device_group_range]
+                                                                   [device_group_list]
+                                                                                      [device_name]
+                                                                                      [document_parent]
+                                                                                      [article_numbers]
+                                                                                      [manufactured_from]
+                                                                                      [manufactured_until]
+                                                                   [device_group_elements]
+                                                                                          [pos_nr]
+                                                                                          [name]
