@@ -351,7 +351,7 @@ function ml($id='',$more='',$direct=true,$sep='&amp;'){
     $more = str_replace(',',$sep,$more);
   }
 
-  $xlink = DOKU_BASE;
+  $xlink = DOKU_BASE . basename(DOKU_INC) . '/';
 
   // external URLs are always direct without rewriting
   if(preg_match('#^(https?|ftp)://#i',$id)){

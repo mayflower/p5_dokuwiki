@@ -964,7 +964,6 @@ class Doku_Renderer_xhtml extends Doku_Renderer {
                       $height=NULL, $cache=NULL) {
 
         $ret = '';
-
         list($ext,$mime) = mimetype($src);
         if(substr($mime,0,5) == 'image'){
             //add image tag

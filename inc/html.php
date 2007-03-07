@@ -1094,7 +1094,7 @@ function html_edit($text=null,$include='edit'){ //FIXME: include needed?
 
    <div class="toolbar">
       <div id="draft__status"><?php if(!empty($INFO['draft'])) echo $lang['draftdate'].' '.date($conf['dformat']);?></div>
-      <div id="tool__bar"><?php if(!$ro){?><a href="<?php echo DOKU_BASE?>lib/exe/mediamanager.php?ns=<?php echo $INFO['namespace']?>"
+      <div id="tool__bar"><?php if(!$ro){?><a href="<?php echo DOKU_BASE . basename(DOKU_INC) . "/"; ?>lib/exe/mediamanager.php?ns=<?php echo $INFO['namespace']?>"
       target="_blank"><?php echo $lang['mediaselect'] ?></a><?php }?></div>
 
       <?php if($wr){?>
