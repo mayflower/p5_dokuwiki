@@ -1,4 +1,6 @@
 <?php
+define('PHPDW_PERMIT_GROUP', 2);
+
 $__olddir = getcwd();
 chdir(dirname(__FILE__));
 if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__)).'/');

@@ -12,6 +12,8 @@
 if ( !isset($_SESSION['logged_in']) || !$_SESSION['logged_in']) {
     die();
 }
+// limit to group "int", special case for phprojekt.mayflowerserver.de
+if ($user_group != PHPDW_PERMIT_GROUP) die('Currently there is no wiki for your group installed - please consult your system administrator');
 
   if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__)).'/');
   require_once(DOKU_INC.'inc/init.php');
