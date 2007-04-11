@@ -411,7 +411,7 @@ class Doku_Renderer_xhtml extends Doku_Renderer {
     function smiley($smiley) {
         if ( array_key_exists($smiley, $this->smileys) ) {
             $title = $this->_xmlEntities($this->smileys[$smiley]);
-            $this->doc .= '<img src="'.DOKU_BASE.'lib/images/smileys/'.$this->smileys[$smiley].
+            $this->doc .= '<img src="'.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/smileys/'.$this->smileys[$smiley].
                 '" class="middle" alt="'.
                     $this->_xmlEntities($smiley).'" />';
         } else {
