@@ -882,7 +882,7 @@ function tpl_indexerWebBug(){
   if(isHiddenPage($ID)) return; //no need to index hidden pages
 
   $p = array();
-  $p['src']    = DOKU_BASE.'lib/exe/indexer.php?id='.rawurlencode($ID).
+  $p['src']    = DOKU_BASE.basename(DOKU_INC).'/'.'lib/exe/indexer.php?id='.rawurlencode($ID).
                  '&'.time();
   $p['width']  = 1;
   $p['height'] = 1;
