@@ -130,5 +130,6 @@ $conf['ftp']['port'] = '21';
 $conf['ftp']['user'] = 'user';
 $conf['ftp']['pass'] = 'password';
 $conf['ftp']['root'] = '/home/user/htdocs';
+// Change the DOKU_BASE here if you don't install the phprojekt in the webserver root!!
 define('DOKU_BASE', '/addons/');
 define('DOKU_SCRIPT', 'addon.php?addon=dokuwiki');

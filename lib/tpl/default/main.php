@@ -21,6 +21,7 @@ if (!defined('DOKU_INC')) die();
 */
 ?>
 <br />
+<?php tpl_onlyjs();?>
 <div class="dokuwiki">
   <?php html_msgarea()?>
 

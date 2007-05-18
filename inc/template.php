@@ -979,4 +979,132 @@ function tpl_mediaTree(){
   ptln('</div>');
 }
 
+/**
+ * Print the correct HTML meta headers without javascript
+ *
+ * This has to go into the head section of your template 
+ * if you use the dokuwiki as phprojekt addon.
+ *
+ * @triggers TPL_METAHEADER_OUTPUT
+ * @param  boolean $alt Should feeds and alternative format links be added?
+ * @author Michele Catalano <michele.catalano@mayflower.de>
+ */
+function tpl_metaheaders_nojs($alt=true){
+  global $ID;
+  global $REV;
+  global $INFO;
+  global $ACT;
+  global $lang;
+  global $conf;
+  $it=2;
+
+  // prepare the head array
+  $head = array();
+
+
+  // the usual stuff
+  $head['meta'][] = array( 'name'=>'generator', 'content'=>'DokuWiki '.getVersion() );
+  $head['link'][] = array( 'rel'=>'start', 'href'=>DOKU_BASE );
+  $head['link'][] = array( 'rel'=>'contents', 'href'=> wl($ID,'do=index',false,'&'),
+                           'title'=>$lang['btn_index'] );
+
+  if($alt){
+    $head['link'][] = array( 'rel'=>'alternate', 'type'=>'application/rss+xml',
+                             'title'=>'Recent Changes', 'href'=>DOKU_BASE.'feed.php');
+    $head['link'][] = array( 'rel'=>'alternate', 'type'=>'application/rss+xml',
+                             'title'=>'Current Namespace',
+                             'href'=>DOKU_BASE.'feed.php?mode=list&ns='.$INFO['namespace']);
+    $head['link'][] = array( 'rel'=>'alternate', 'type'=>'text/html', 'title'=>'Plain HTML',
+                             'href'=>exportlink($ID, 'xhtml', '', false, '&'));
+    $head['link'][] = array( 'rel'=>'alternate', 'type'=>'text/plain', 'title'=>'Wiki Markup',
+                             'href'=>exportlink($ID, 'raw', '', false, '&'));
+  }
+
+  // setup robot tags apropriate for different modes
+  if( ($ACT=='show' || $ACT=='export_xhtml') && !$REV){
+    if($INFO['exists']){
+      //delay indexing:
+      if((time() - $INFO['lastmod']) >= $conf['indexdelay']){
+        $head['meta'][] = array( 'name'=>'robots', 'content'=>'index,follow');
+      }else{
+        $head['meta'][] = array( 'name'=>'robots', 'content'=>'noindex,nofollow');
+      }
+    }else{
+      $head['meta'][] = array( 'name'=>'robots', 'content'=>'noindex,follow');
+    }
+  }elseif(defined('DOKU_MEDIADETAIL')){
+    $head['meta'][] = array( 'name'=>'robots', 'content'=>'index,follow');
+  }else{
+    $head['meta'][] = array( 'name'=>'robots', 'content'=>'noindex,nofollow');
+  }
+
+  // set metadata
+  if($ACT == 'show' || $ACT=='export_xhtml'){
+    // date of modification
+    if($REV){
+      $head['meta'][] = array( 'name'=>'date', 'content'=>date('Y-m-d\TH:i:sO',$REV));
+    }else{
+      $head['meta'][] = array( 'name'=>'date', 'content'=>date('Y-m-d\TH:i:sO',$INFO['lastmod']));
+    }
+
+    // keywords (explicit or implicit)
+    if(!empty($INFO['meta']['subject'])){
+      $head['meta'][] = array( 'name'=>'keywords', 'content'=>join(',',$INFO['meta']['subject']));
+    }else{
+      $head['meta'][] = array( 'name'=>'keywords', 'content'=>str_replace(':',',',$ID));
+    }
+  }
+
+  // load stylesheets
+  $head['link'][] = array('rel'=>'stylesheet', 'media'=>'screen', 'type'=>'text/css',
+                          'href'=>DOKU_BASE. basename(DOKU_INC) . "/" . 'lib/exe/css.php');
+  $head['link'][] = array('rel'=>'stylesheet', 'media'=>'print', 'type'=>'text/css',
+                          'href'=>DOKU_BASE. basename(DOKU_INC) . "/" .'lib/exe/css.php?print=1');
+
+  // trigger event here
+  trigger_event('TPL_METAHEADER_OUTPUT',$head,'_tpl_metaheaders_action',true);
+}
+
+/**
+ * prints the javascripts lines to inculde the js also in the middle of the html
+ * 
+ * Only for use as phprojekt addon
+ * 
+ * @author Michele Catalano <michele.catalano@mayflower.de>
+ *
+ */
+function tpl_onlyjs(){  global $ID;
+  global $REV;
+  global $INFO;
+  global $ACT;
+  global $lang;
+  global $conf;
+  $it=2;
+
+  // load javascript
+  $js_edit  = ($ACT=='edit' || $ACT=='preview' || $ACT=='recover' || $ACT=='wordblock' ) ? 1 : 0;
+  $js_write = ($INFO['writable']) ? 1 : 0;
+  if(defined('DOKU_MEDIAMANAGER')){
+    $js_edit  = 1;
+    $js_write = 0;
+  }
+  if(($js_edit && $js_write) || defined('DOKU_MEDIAMANAGER')){
+    $script = "NS='".$INFO['namespace']."';";
+    if($conf['useacl'] && $_SERVER['REMOTE_USER']){
+      require_once(DOKU_INC.'inc/toolbar.php');
+      $script .= "SIG='".toolbar_signature()."';";
+    }
+    $head['script'][] = array( 'type'=>'text/javascript', 'charset'=>'iso-8859-1',
+                               '_data'=> $script);
+  }
+  $head['script'][] = array( 'type'=>'text/javascript', 'charset'=>'iso-8859-1', '_data'=>'',
+                             'src'=>DOKU_BASE.basename(DOKU_INC).'/'.'lib/exe/js.php?edit='.$js_edit.'&write='.$js_write);
+
+  // trigger event here
+  trigger_event('TPL_METAHEADER_OUTPUT',$head,'_tpl_metaheaders_action',true);
+//    printf('<script type="text/javascript">%s</script>',$script);
+//  }
+//  printf('<script type="text/javascript" charset="iso-8859-1" src="%s/lib/exe/js.php?edit=%s&write=%s" />',DOKU_BASE.basename(DOKU_INC),$js_edit,$js_write);
+}
+
 //Setup VIM: ex: et ts=2 enc=utf-8 :

@@ -13,7 +13,7 @@ if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__)).'/');
   require_once(DOKU_INC.'inc/actions.php');
 
   ob_start();
-  tpl_metaheaders(false);
+  tpl_metaheaders_nojs(false);
   $__headers = ob_get_contents();
   ob_end_clean();
   
