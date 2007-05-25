@@ -17,7 +17,7 @@ div.no {
 }
 
 div.error {
-  background: #fcc url(../images/error.png) 0.5em 0px no-repeat;
+  background: #fcc url(/addons/dokuwiki/lib/images/error.png) 0.5em 0px no-repeat;
   color: #000;
   border-bottom: 1px solid #faa;
   font-size: 90%;
@@ -27,7 +27,7 @@ div.error {
 }
 
 div.info {
-  background: #ccf url(../images/info.png) 0.5em 0px no-repeat;
+  background: #ccf url(/addons/dokuwiki/lib/images/info.png) 0.5em 0px no-repeat;
   color: #000;
   border-bottom: 1px solid #aaf;
   font-size: 90%;
@@ -37,7 +37,7 @@ div.info {
 }
 
 div.success {
-  background: #cfc url(../images/success.png) 0.5em 0px no-repeat;
+  background: #cfc url(/addons/dokuwiki/lib/images/success.png) 0.5em 0px no-repeat;
   color: #000;
   border-bottom: 1px solid #afa;
   font-size: 90%;
@@ -47,7 +47,7 @@ div.success {
 }
 
 div.notify {
-  background: #ffc url(../images/notify.png) 0.5em 0px no-repeat;
+  background: #ffc url(/addons/dokuwiki/lib/images/notify.png) 0.5em 0px no-repeat;
   color: #000;
   border-bottom: 1px solid #ffa;
   font-size: 90%;
