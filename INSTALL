@@ -1,0 +1,21 @@
+Installation for Dokuwiki V0.1 on PHProjekt 5.2.x:
+
+
+1. If the PHProjekt installation is not on the Webserver DocumentRoot, you must change in the follow 
+    files some paths:
+
+conf/dokuwiki.php
+  set DOKU_BASE to path from DocumentRoot to addons.
+   one example: phprojekt is installed under "http://localhost/special/phprojekt/" than
+    change the DOKU_BASE to '/special/phprojekt/addons/'
+lib/tpl/default/design.css
+  change all url statements to the full document path
+lib/styles/styles.css
+  change all url statements to the full document path
+
+2. To restrict the access on one phprojekt group change follow files:
+doku.php
+  Uncomment the line 16.
+dokuwiki.inc.php
+  define the 'PHPDW_PERMIT_GROUP' with the ID of the group.
+   You can find the ID in the database table gruppen from phprojekt.
