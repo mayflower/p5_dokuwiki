@@ -23,11 +23,13 @@
   define('AUTH_ADMIN',255);
 
   global $conf;
+
   if($conf['useacl']){
     require_once(DOKU_INC.'inc/blowfish.php');
     require_once(DOKU_INC.'inc/mail.php');
 
     global $auth;
+
     // load the the backend auth functions and instantiate the auth object
     if (@file_exists(DOKU_INC.'inc/auth/'.$conf['authtype'].'.class.php')) {
       require_once(DOKU_INC.'inc/auth/basic.class.php');
@@ -37,11 +39,10 @@
       if (class_exists($auth_class)) {
         $auth = new $auth_class();
         if ($auth->success == false) {
+          // degrade to unauthenticated user
           unset($auth);
+          auth_logoff();
           msg($lang['authtempfail'], -1);
-
-          // turn acl config setting off for the rest of this page
-          $conf['useacl'] = 0;
         }
       } else {
         nice_die($lang['authmodfailed']);
@@ -53,26 +54,32 @@
 
   // do the login either by cookie or provided credentials
   if($conf['useacl']){
-    if (!isset($_REQUEST['u'])) $_REQUEST['u'] = '';
-    if (!isset($_REQUEST['p'])) $_REQUEST['p'] = '';
-    if (!isset($_REQUEST['r'])) $_REQUEST['r'] = '';
+    if($auth){
+      if (!isset($_REQUEST['u'])) $_REQUEST['u'] = '';
+      if (!isset($_REQUEST['p'])) $_REQUEST['p'] = '';
+      if (!isset($_REQUEST['r'])) $_REQUEST['r'] = '';
 
-    // if no credentials were given try to use HTTP auth (for SSO)
-    if(empty($_REQUEST['u']) && empty($_COOKIE[DOKU_COOKIE]) && !empty($_SERVER['PHP_AUTH_USER'])){
-      $_REQUEST['u'] = $_SERVER['PHP_AUTH_USER'];
-      $_REQUEST['p'] = $_SERVER['PHP_AUTH_PW'];
-    }
+      // if no credentials were given try to use HTTP auth (for SSO)
+      if(empty($_REQUEST['u']) && empty($_COOKIE[DOKU_COOKIE]) && !empty($_SERVER['PHP_AUTH_USER'])){
+        $_REQUEST['u'] = $_SERVER['PHP_AUTH_USER'];
+        $_REQUEST['p'] = $_SERVER['PHP_AUTH_PW'];
+      }
 
-    // external trust mechanism in place?
-    if(!is_null($auth) && $auth->canDo('external')){
-      $auth->trustExternal($_REQUEST['u'],$_REQUEST['p'],$_REQUEST['r']);
-    }else{
-      auth_login($_REQUEST['u'],$_REQUEST['p'],$_REQUEST['r']);
+      // external trust mechanism in place?
+      if(!is_null($auth) && $auth->canDo('external')){
+        $auth->trustExternal($_REQUEST['u'],$_REQUEST['p'],$_REQUEST['r']);
+      }else{
+        auth_login($_REQUEST['u'],$_REQUEST['p'],$_REQUEST['r']);
+      }
     }
 
     //load ACL into a global array
+    global $AUTH_ACL;
     if(is_readable(DOKU_CONF.'acl.auth.php')){
       $AUTH_ACL = file(DOKU_CONF.'acl.auth.php');
+      if(isset($_SERVER['REMOTE_USER'])){
+        $AUTH_ACL = str_replace('@USER@',$_SERVER['REMOTE_USER'],$AUTH_ACL);
+      }
     }else{
       $AUTH_ACL = array();
     }
@@ -104,9 +111,10 @@
  * @param   string  $user    Username
  * @param   string  $pass    Cleartext Password
  * @param   bool    $sticky  Cookie should not expire
+ * @param   bool    $silent  Don't show error on bad auth
  * @return  bool             true on successful auth
 */
-function auth_login($user,$pass,$sticky=false){
+function auth_login($user,$pass,$sticky=false,$silent=false){
   global $USERINFO;
   global $conf;
   global $lang;
@@ -118,23 +126,25 @@ function auth_login($user,$pass,$sticky=false){
     if ($auth->checkPass($user,$pass)){
       // make logininfo globally available
       $_SERVER['REMOTE_USER'] = $user;
-      $USERINFO = $auth->getUserData($user); //FIXME move all references to session
+      $USERINFO = $auth->getUserData($user);
 
       // set cookie
       $pass   = PMA_blowfish_encrypt($pass,auth_cookiesalt());
       $cookie = base64_encode("$user|$sticky|$pass");
       if($sticky) $time = time()+60*60*24*365; //one year
-      setcookie(DOKU_COOKIE,$cookie,$time,'/');
+      setcookie(DOKU_COOKIE,$cookie,$time,DOKU_REL);
 
       // set session
       $_SESSION[DOKU_COOKIE]['auth']['user'] = $user;
       $_SESSION[DOKU_COOKIE]['auth']['pass'] = $pass;
       $_SESSION[DOKU_COOKIE]['auth']['buid'] = auth_browseruid();
       $_SESSION[DOKU_COOKIE]['auth']['info'] = $USERINFO;
+      $_SESSION[DOKU_COOKIE]['auth']['time'] = time();
+
       return true;
     }else{
       //invalid credentials - log off
-      msg($lang['badlogin'],-1);
+      if(!$silent) msg($lang['badlogin'],-1);
       auth_logoff();
       return false;
     }
@@ -144,10 +154,10 @@ function auth_login($user,$pass,$sticky=false){
     list($user,$sticky,$pass) = split('\|',$cookie,3);
     // get session info
     $session = $_SESSION[DOKU_COOKIE]['auth'];
-
     if($user && $pass){
       // we got a cookie - see if we can trust it
       if(isset($session) &&
+        ($session['time'] >= time()-$conf['auth_security_timeout']) &&
         ($session['user'] == $user) &&
         ($session['pass'] == $pass) &&  //still crypted
         ($session['buid'] == auth_browseruid()) ){
@@ -156,9 +166,9 @@ function auth_login($user,$pass,$sticky=false){
         $USERINFO = $session['info']; //FIXME move all references to session
         return true;
       }
-      // no we don't trust it yet - recheck pass
+      // no we don't trust it yet - recheck pass but silent
       $pass = PMA_blowfish_decrypt($pass,auth_cookiesalt());
-      return auth_login($user,$pass,$sticky);
+      return auth_login($user,$pass,$sticky,true);
     }
   }
   //just to be sure
@@ -231,11 +241,68 @@ function auth_logoff(){
   if(isset($_SERVER['REMOTE_USER']))
     unset($_SERVER['REMOTE_USER']);
   $USERINFO=null; //FIXME
-  setcookie(DOKU_COOKIE,'',time()-600000,'/');
+  setcookie(DOKU_COOKIE,'',time()-600000,DOKU_REL);
 
   if($auth && $auth->canDo('logoff')){
     $auth->logOff();
   }
+}
+
+/**
+ * Check if a user is a manager
+ *
+ * Should usually be called without any parameters to check the current
+ * user.
+ *
+ * The info is available through $INFO['ismanager'], too
+ *
+ * @author Andreas Gohr <andi@splitbrain.org>
+ * @see    auth_isadmin
+ * @param  string user      - Username
+ * @param  array  groups    - List of groups the user is in
+ * @param  bool   adminonly - when true checks if user is admin
+ */
+function auth_ismanager($user=null,$groups=null,$adminonly=false){
+  global $conf;
+  global $USERINFO;
+
+  if(!$conf['useacl']) return false;
+  if(is_null($user))   $user   = $_SERVER['REMOTE_USER'];
+  if(is_null($groups)) $groups = $USERINFO['grps'];
+  $user   = auth_nameencode($user);
+
+  // check username against superuser and manager
+  if(auth_nameencode($conf['superuser']) == $user) return true;
+  if(!$adminonly){
+    if(auth_nameencode($conf['manager']) == $user) return true;
+  }
+
+  //prepend groups with @ and nameencode
+  $cnt = count($groups);
+  for($i=0; $i<$cnt; $i++){
+    $groups[$i] = '@'.auth_nameencode($groups[$i]);
+  }
+
+  // check groups against superuser and manager
+  if(in_array(auth_nameencode($conf['superuser'],true), $groups)) return true;
+  if(!$adminonly){
+    if(in_array(auth_nameencode($conf['manager'],true), $groups)) return true;
+  }
+  return false;
+}
+
+/**
+ * Check if a user is admin
+ *
+ * Alias to auth_ismanager with adminonly=true
+ *
+ * The info is available through $INFO['isadmin'], too
+ *
+ * @author Andreas Gohr <andi@splitbrain.org>
+ * @see auth_ismanager
+ */
+function auth_isadmin($user=null,$groups=null){
+  return auth_ismanager($user,$groups,true);
 }
 
 /**
@@ -378,6 +445,7 @@ function auth_aclcheck($id,$user,$groups){
 function auth_nameencode($name,$skip_group=false){
   global $cache_authname;
   $cache =& $cache_authname;
+  $name  = (string) $name;
 
   if (!isset($cache[$name][$skip_group])) {
     if($skip_group && $name{0} =='@'){

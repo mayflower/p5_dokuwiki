@@ -15,13 +15,16 @@
 // must be run from within DokuWiki
 if (!defined('DOKU_INC')) die();
 
-/*
- tpl_pagetitle();
- echo "[" .strip_tags($conf['title']) . "]";
-*/
+
+/*
+ tpl_pagetitle();
+ echo "[" .strip_tags($conf['title']) . "]";
+*/
 ?>
 <br />
+
 <?php tpl_onlyjs();?>
+
 <div class="dokuwiki">
   <?php html_msgarea()?>
 
@@ -114,4 +117,5 @@ if (!defined('DOKU_INC')) die();
   </div>
 
 </div>
+
 <div class="no"><?php /* provide DokuWiki housekeeping, required in all templates */ tpl_indexerWebBug()?></div>

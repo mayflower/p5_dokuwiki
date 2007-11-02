@@ -142,6 +142,7 @@ function search_qsearch(&$data,$base,$file,$type,$lvl,$opts){
  * @author  Andreas Gohr <andi@splitbrain.org>
  */
 function search_index(&$data,$base,$file,$type,$lvl,$opts){
+  global $conf;
   $return = true;
 
   $item = array();
@@ -155,6 +156,10 @@ function search_index(&$data,$base,$file,$type,$lvl,$opts){
   }
 
   $id = pathID($file);
+
+  if($type=='d' && $conf['sneaky_index'] && auth_quickaclcheck($id.':') < AUTH_READ){
+    return false;
+  }
 
   //check hidden
   if(isHiddenPage($id)){
@@ -207,6 +212,7 @@ function search_media(&$data,$base,$file,$type,$lvl,$opts){
 
   $info['file'] = basename($file);
   $info['size'] = filesize($base.'/'.$file);
+  $info['mtime'] = filemtime($base.'/'.$file);
   $info['writable'] = is_writable($base.'/'.$file);
   if(preg_match("/\.(jpe?g|gif|png)$/",$file)){
     $info['isimg'] = true;
@@ -459,7 +465,7 @@ function search_regex(&$data,$base,$file,$reg,$words){
                htmlspecialchars(utf8_substr($text,$f,$l)).
                '<span class="search_sep"> ... </span>';
     $mark    = '('.join('|', $words).')';
-    $snippet = preg_replace('#'.$mark.'#si','<span class="search_hit">\\1</span>',$snippet);
+    $snippet = preg_replace('#'.$mark.'#si','<strong class="search_hit">\\1</strong>',$snippet);
 
     $data[] = array(
       'id'       => pathID($file),

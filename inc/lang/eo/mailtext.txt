@@ -1,8 +1,8 @@
-Iu paĝo en via Vikio estis ŝanĝita aŭ aldonita. Jen detaloj:
+Paĝo en via DokuVikio estis ŝanĝita aŭ aldonita. Jen detaloj:
 
 Dato              : @DATE@
 Krozilo           : @BROWSER@
-IP-aderso         : @IPADDRESS@
+IP-adreso         : @IPADDRESS@
 RetNodo           : @HOSTNAME@
 Antaŭa revizio    : @OLDPAGE@
 Nova revizio      : @NEWPAGE@
@@ -11,7 +11,6 @@ Uzanto            : @USER@
 
 @DIFF@
 
-
 -- 
-Tiu ĉi mesaĝo estis kreita fare de DokuWiki kiu lokiĝas ĉi tie:
+Tiu ĉi mesaĝo estis kreata de DokuWiki, kiu lokiĝas ĉi tie:
 @DOKUWIKIURL@

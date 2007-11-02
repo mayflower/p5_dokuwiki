@@ -8,6 +8,11 @@
 $lang['encoding']   = 'utf-8';
 $lang['direction']  = 'ltr';
 
+$lang['doublequoteopening']  = '„';  // &bdquo; U+201E (8222)
+$lang['doublequoteclosing']  = '“'; // &ldquo;  U+201C (8220)
+$lang['singlequoteopening']  = '‚'; // &sbquo; U+201A (8218)
+$lang['singlequoteclosing']  = '‘'; // &lsquo; U+2018 (8216)
+
 $lang['btn_edit']   = 'Labot lapu';
 $lang['btn_source'] = 'Parādīt lapas kodu';
 $lang['btn_show']   = 'Parādīt lapu';
@@ -54,6 +59,7 @@ $lang['register']   = 'Reģistrēties';
 $lang['profile']    = 'Lietotāja vārds';
 $lang['badlogin']   = 'Atvaino, lietotājvārds vai parole aplama.';
 $lang['draftdate']  = 'Melnraksts automātiski saglabāts'; // full dformat date will be added
+$lang['minoredit']  = 'Sīkas izmaiņas';
 
 $lang['regmissing'] = 'Atvaino, jāaizpilda visas ailes.';
 $lang['reguexists'] = 'Atvaino, tāds lietājs jau ir.';
@@ -109,6 +115,9 @@ $lang['mediaview']   = 'Skatīt oriģinālo failu';
 $lang['mediaroot']   = 'sakne';
 $lang['mediaupload'] = 'Augšupielādēt failu patreizējā sadaļā. Lai izveidotu dziļāku sadaļu, pieraksti to, atdalot ar kolu, pirms augšupielādējamā faila vārda.';
 $lang['mediaextchange'] = 'Faila paplašinājums mainīts no .%s uz .%s!';
+$lang['uploadbadcontent'] = 'Augšupielādētā saturs neatbilst faila paplašinājumam %s.';
+$lang['uploadspam']  = 'Augšupielāde bloķēta ar melno sarakstu.';
+$lang['uploadxss']   = 'Augšupielāde bloķēta iespējama slikta satura dēļ.';
 
 $lang['reference']   = 'Norādes uz failu';
 $lang['ref_inuse']   = 'Failu nevar dzēst, jo izmanto šādas lapas:';
@@ -133,6 +142,7 @@ $lang['summary']    = 'Anotācija';
 $lang['mail_newpage'] = 'lapa pievienota:';
 $lang['mail_changed'] = 'lapa mainīta:';
 $lang['mail_new_user'] = 'Jauns lietotājs:';
+$lang['mail_upload']   = 'augšupielādētais fails:';
 
 $lang['nosmblinks'] = 'Saites uz Windows resursiem darbojas tikai Microsoft Internet Explorer.\nProtams, ka vari saiti kopēt un iespraust citā programmā.';
 
@@ -205,6 +215,7 @@ $lang['i_modified']   = 'Drošības nolūkos šis skripts darbosies tika ar jaun
 $lang['i_writeerr']   = 'Nevar izveidot <code>%s</code>. Jāpārbauda direktorijas/faila tiesības un fails jāizveido pašam.'; 
 $lang['i_confexists'] = '<code>%s</code> jau ir';
 $lang['i_badhash']    = 'nepazīstams via izmainīts dokuwiki.php (hash=<code>%s</code>)';
+$lang['i_phpver']     = 'Jūsu PHP versija <code>%s</code> ir par vecu. Vajag versiju <code>%s</code>. Atjaunojiet savu PHP instalāciju.';
 $lang['i_badval']     = '<code>%s</code> - neatļauta vai tukša vērtība';
 $lang['i_funcna']     = 'PHP funkcija <code>%s</code> nav pieejama. Varbūt jūsu servera īpašnieks to kāda iemesla dēļ atslēdzis?';
 $lang['i_permfail']   = 'Dokuwiki nevar ierakstīt <code>%s</code>. Jālabo direktorijas tiesības!';

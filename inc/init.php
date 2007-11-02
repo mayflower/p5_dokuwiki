@@ -28,6 +28,7 @@
   global $cache_wikifn;   $cache_wikifn = array();
   global $cache_cleanid;  $cache_cleanid = array();
   global $cache_authname; $cache_authname = array();
+  global $cache_metadata; $cache_metadata = array();
 
   //prepare config array()
   global $conf;
@@ -52,8 +53,16 @@
   }
 
   // define baseURL
-  if(!defined('DOKU_BASE')) define('DOKU_BASE',getBaseURL());
-  if(!defined('DOKU_URL'))  define('DOKU_URL',getBaseURL(true));
+  if(!defined('DOKU_REL')) define('DOKU_REL',getBaseURL(false));
+  if(!defined('DOKU_URL')) define('DOKU_URL',getBaseURL(true));
+  if(!defined('DOKU_BASE')){
+    if($conf['canonical']){
+      define('DOKU_BASE',DOKU_URL);
+    }else{
+      define('DOKU_BASE',DOKU_REL);
+    }
+  }
+
 
   // define cookie and session id
   if (!defined('DOKU_COOKIE')) define('DOKU_COOKIE', 'DW'.md5(DOKU_URL));
@@ -75,6 +84,9 @@
   // make session rewrites XHTML compliant
   @ini_set('arg_separator.output', '&amp;');
 
+  // make sure global zlib does not interfere FS#1132
+  @ini_set('zlib.output_compression', 'off');
+
   // enable gzip compression
   if ($conf['gzip_output'] &&
       !defined('DOKU_DISABLE_GZIP_OUTPUT') &&
@@ -86,6 +98,7 @@
   // init session
   if (!headers_sent() && !defined('NOSESSION')){
     session_name("DokuWiki");
+    session_set_cookie_params(0, DOKU_REL);
     session_start();
   }
 
@@ -95,15 +108,17 @@
     if (!empty($_POST))   remove_magic_quotes($_POST);
     if (!empty($_COOKIE)) remove_magic_quotes($_COOKIE);
     if (!empty($_REQUEST)) remove_magic_quotes($_REQUEST);
-#    if (!empty($_SESSION)) remove_magic_quotes($_SESSION); #FIXME needed ?
     @ini_set('magic_quotes_gpc', 0);
     define('MAGIC_QUOTES_STRIPPED',1);
   }
   @set_magic_quotes_runtime(0);
   @ini_set('magic_quotes_sybase',0);
 
+  // don't let cookies ever interfere with request vars
+  $_REQUEST = array_merge($_GET,$_POST);
+
   // disable gzip if not available
-  if($conf['compression'] == 'bz' && !function_exists('bzopen')){
+  if($conf['compression'] == 'bz2' && !function_exists('bzopen')){
     $conf['compression'] = 'gz';
   }
   if($conf['compression'] == 'gz' && !function_exists('gzopen')){
@@ -133,12 +148,13 @@ function init_paths(){
                  'mediadir'  => 'media',
                  'metadir'   => 'meta',
                  'cachedir'  => 'cache',
+                 'indexdir'  => 'index',
                  'lockdir'   => 'locks');
 
   foreach($paths as $c => $p){
     if(empty($conf[$c]))  $conf[$c] = $conf['savedir'].'/'.$p;
     $conf[$c]             = init_path($conf[$c]);
-    if(empty($conf[$c]))  nice_die("The $c does not exist, isn't accessable or writable.
+    if(empty($conf[$c]))  nice_die("The $c ('$p') does not exist, isn't accessible or writable.
                                You should check your config and permission settings.
                                Or maybe you want to <a href=\"install.php\">run the
                                installer</a>?");
@@ -157,9 +173,7 @@ function init_paths(){
 function init_files(){
   global $conf;
 
-  $files = array( $conf['cachedir'].'/word.idx',
-                  $conf['cachedir'].'/page.idx',
-                  $conf['cachedir'].'/index.idx');
+  $files = array( $conf['indexdir'].'/page.idx');
 
   foreach($files as $file){
     if(!@file_exists($file)){
@@ -257,10 +271,10 @@ function remove_magic_quotes(&$array) {
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function getBaseURL($abs=false){
+function getBaseURL($abs=null){
   global $conf;
   //if canonical url enabled always return absolute
-  if($conf['canonical']) $abs = true;
+  if(is_null($abs)) $abs = $conf['canonical'];
 
   if($conf['basedir']){
     $dir = $conf['basedir'].'/';

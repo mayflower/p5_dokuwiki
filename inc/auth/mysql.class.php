@@ -24,7 +24,7 @@ class auth_mysql extends auth_basic {
      * Constructor
      *
      * checks if the mysql interface is available, otherwise it will
-     * set the variable $success of the basis class to FALSE
+     * set the variable $success of the basis class to false
      *
      * @author Matthias Grimm <matthiasgrimm@users.sourceforge.net>
      */
@@ -718,6 +718,9 @@ class auth_mysql extends auth_basic {
               $this->dbsub = $result[3];
             }
             $this->dbcon = $con;
+            if(!empty($this->cnf['charset'])){
+                 mysql_query('SET CHARACTER SET "' . $this->cnf['charset'] . '"', $con);
+            }
             return true;   // connection and database successfully opened
           } else {
             mysql_close ($con);

@@ -8,12 +8,13 @@
 
 //  xdebug_start_profiling();
 
-// PHProjekt watch: only as logged in user accessible.
-if ( !isset($_SESSION['logged_in']) || !$_SESSION['logged_in']) {
+
+  // PHProjekt watch: only as logged in user accessible.
+  if ( !isset($_SESSION['logged_in']) || !$_SESSION['logged_in']) {
     die();
-}
-// limit to group "int", special case for phprojekt.mayflowerserver.de
-if ($user_group != PHPDW_PERMIT_GROUP) die('Currently there is no wiki for your group installed - please consult your system administrator');
+  }
+  // limit to group "int", special case for phprojekt.mayflowerserver.de
+  if ($user_group != PHPDW_PERMIT_GROUP) die('Currently there is no wiki for your group installed - please consult your system administrator');
 
   if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__)).'/');
   require_once(DOKU_INC.'inc/init.php');
@@ -63,7 +64,9 @@ if ($user_group != PHPDW_PERMIT_GROUP) die('Currently there is no wiki for your 
   }
 
   //send 404 for missing pages if configured
-  if($conf['send404'] && !$INFO['exists']){
+  if($conf['send404'] &&
+     ($ACT == 'show' || substr($ACT,0,7) == 'export_') &&
+     !$INFO['exists']){
     header('HTTP/1.0 404 Not Found');
   }
 
@@ -84,4 +87,5 @@ if ($user_group != PHPDW_PERMIT_GROUP) die('Currently there is no wiki for your 
   trigger_event('DOKUWIKI_DONE', $tmp=array());
 
 //  xdebug_dump_function_profile(1);
+
 ?>

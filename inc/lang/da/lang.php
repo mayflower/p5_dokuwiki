@@ -9,6 +9,10 @@
  */
 $lang['encoding']   = 'utf-8';
 $lang['direction']  = 'ltr';
+$lang['doublequoteopening']  = '„';//&bdquo;
+$lang['doublequoteclosing']  = '“';//&ldquo;
+$lang['singlequoteopening']  = '‚';//&sbquo;
+$lang['singlequoteclosing']  = '‘';//&lsquo;
 
 $lang['btn_edit']   = 'Rediger dette dokument';
 $lang['btn_source'] = 'Vis kildekode';
@@ -99,6 +103,9 @@ $lang['uploadsucc']  = 'Upload var en succes';
 $lang['uploadfail']  = 'Upload fejlede. Der er muligvis problemer med rettighederne';
 $lang['uploadwrong'] = 'Upload afvist. Filtypen er ikke tilladt';
 $lang['uploadexist'] = 'Filen eksisterer allerede.';
+$lang['uploadbadcontent'] = 'Upload indhold matchede ikke %s fil-endelsen.';
+$lang['uploadspam']  = 'Upload blev blokeret af spam sortlisten.';
+$lang['uploadxss']   = 'Upload blev blokeret p� grund af mulig skadeligt indhold.';
 $lang['deletesucc']  = 'Filen "%s" er blevet slettet.';
 $lang['deletefail']  = '"%s" kunne ikke slettes - check rettighederne.';
 $lang['mediainuse']  = 'Filen "%s" er ikke slettet - den er stadig i brug.';
@@ -131,12 +138,13 @@ $lang['by']         = 'af';
 $lang['deleted']    = 'slettet';
 $lang['created']    = 'oprettet';
 $lang['restored']   = 'gammel udgave reetableret';
+$lang['external_edit'] = 'ekstern redigering';
 $lang['summary']    = 'Redigerings resume';
 
 $lang['mail_newpage'] = 'dokument tilføjet:';
 $lang['mail_changed'] = 'dokument ændret:';
 $lang['mail_new_user'] = 'Ny bruger';
-
+$lang['mail_upload'] = 'fil uploadet:';
 $lang['nosmblinks'] = 'Henvisninger til Windows shares virker kun i Microsoft Internet Explorer.\nDu kan stadig kopiere og indsætte linket.';
 
 $lang['qb_alert']   = 'Skriv den tekst du ønsker at formatere.\nDen vil blive tilføjet i slutningen af dokumentet.';

@@ -80,6 +80,7 @@ $lang['usewordblock']= 'Block spam based on wordlist';
 $lang['indexdelay']  = 'Time delay before indexing (sec)';
 $lang['relnofollow'] = 'Use rel="nofollow" on external links';
 $lang['mailguard']   = 'Obfuscate email addresses';
+$lang['iexssprotect']= 'Check uploaded files for possibly malicious JavaScript or HTML code';
 
 /* Authentication Options */
 $lang['useacl']      = 'Use access control lists';
@@ -87,13 +88,16 @@ $lang['autopasswd']  = 'Autogenerate passwords';
 $lang['authtype']    = 'Authentication backend';
 $lang['passcrypt']   = 'Password encryption method';
 $lang['defaultgroup']= 'Default group';
-$lang['superuser']   = 'Superuser';
+$lang['superuser']   = 'Superuser - a group or user with full access to all pages and functions regardless of the ACL settings';
+$lang['manager']     = 'Manager - a group or user with access to certain management functions';
 $lang['profileconfirm'] = 'Confirm profile changes with password';
 $lang['disableactions'] = 'Disable DokuWiki actions';
 $lang['disableactions_check'] = 'Check';
 $lang['disableactions_subscription'] = 'Subscribe/Unsubscribe';
 $lang['disableactions_wikicode'] = 'View source/Export Raw';
 $lang['disableactions_other'] = 'Other actions (comma separated)';
+$lang['sneaky_index'] = 'By default, DokuWiki will show all namespaces in the index view. Enabling this option will hide those where the user doesn\'t have read permissions. This might result in hiding of accessable subnamespaces. This may make the index unusable with certain ACL setups.';
+$lang['auth_security_timeout'] = 'Authentication Security Timeout (seconds)';
 
 /* Advanced Options */
 $lang['updatecheck'] = 'Check for updates and security warnings? DokuWiki needs to contact splitbrain.org for this feature.';
@@ -120,11 +124,13 @@ $lang['compress']    = 'Compact CSS and javascript output';
 $lang['hidepages']   = 'Hide matching pages (regular expressions)';
 $lang['send404']     = 'Send "HTTP 404/Page Not Found" for non existing pages';
 $lang['sitemap']     = 'Generate Google sitemap (days)';
+$lang['broken_iua']  = 'Is the ignore_user_abort function broken on your system? This could cause a non working search index. IIS+PHP/CGI is known to be broken. See <a href="http://bugs.splitbrain.org/?do=details&amp;task_id=852">Bug 852</a> for more info.';
 
 $lang['rss_type']    = 'XML feed type';
 $lang['rss_linkto']  = 'XML feed links to';
 $lang['rss_update']  = 'XML feed update interval (sec)';
 $lang['recent_days'] = 'How many recent changes to keep (days)';
+$lang['rss_show_summary'] = 'XML feed show summary in title';
 
 /* Target options */
 $lang['target____wiki']      = 'Target window for internal links';
@@ -147,6 +153,11 @@ $lang['ftp____port'] = 'FTP port for safemode hack';
 $lang['ftp____user'] = 'FTP user name for safemode hack';
 $lang['ftp____pass'] = 'FTP password for safemode hack';
 $lang['ftp____root'] = 'FTP root directory for safemode hack';
+
+/* typography options */
+$lang['typography_o_0'] = 'none';
+$lang['typography_o_1'] = 'Double quotes only';
+$lang['typography_o_2'] = 'All quotes (might not always work)';
 
 /* userewrite options */
 $lang['userewrite_o_0'] = 'none';

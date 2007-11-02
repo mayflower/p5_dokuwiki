@@ -39,8 +39,11 @@ function mail_send($to, $subject, $body, $from='', $cc='', $bcc='', $headers=nul
     $subject = utf8_strip($subject);
   }
 
-  if(!utf8_isASCII($subject))
+  if(!utf8_isASCII($subject)) {
     $subject = '=?UTF-8?Q?'.mail_quotedprintable_encode($subject,0).'?=';
+    // Spaces must be encoded according to rfc2047. Use the "_" shorthand
+    $subject = preg_replace('/ /', '_', $subject);
+  }
 
   $header  = '';
 
@@ -129,7 +132,7 @@ function mail_encode_address($string,$header='',$names=true){
 
     // add to header comma seperated and in new line to avoid too long headers
     if($headers != '') $headers .= ','.MAILHEADER_EOL.' ';
-    $headers .= $text.$addr;
+    $headers .= $text.' '.$addr;
   }
 
   if(empty($headers)) return null;
@@ -144,14 +147,23 @@ function mail_encode_address($string,$header='',$names=true){
  * Uses a regular expresion to check if a given mail address is valid
  *
  * May not be completly RFC conform!
+ * @link    http://www.faqs.org/rfcs/rfc2822.html    (paras 3.4.1 & 3.2.4)
  *
- * @link    http://www.webmasterworld.com/forum88/135.htm
+ * @author  Chris Smith <chris@jalakai.co.uk>
  *
  * @param   string $email the address to check
  * @return  bool          true if address is valid
  */
+
+// patterns for use in email detection and validation
+// NOTE: there is an unquoted '/' in RFC2822_ATEXT, it must remain unquoted to be used in the parser
+//       the pattern uses non-capturing groups as captured groups aren't allowed in the parser
+//       select pattern delimiters with care!
+if (!defined('RFC2822_ATEXT')) define('RFC2822_ATEXT',"0-9A-Za-z!#$%&'*+/=?^_`{|}~-");
+if (!defined('PREG_PATTERN_VALID_EMAIL')) define('PREG_PATTERN_VALID_EMAIL', '['.RFC2822_ATEXT.']+(?:\.['.RFC2822_ATEXT.']+)*@(?:[0-9A-Za-z][0-9A-Za-z-]*\.)+[A-Za-z]{2,4}');
+
 function mail_isvalid($email){
-  return eregi("^[0-9a-z]([+-_.]?[0-9a-z])*@[0-9a-z]([-.]?[0-9a-z])*\\.[a-z]{2,4}$", $email);
+  return preg_match('<^'.PREG_PATTERN_VALID_EMAIL.'$>', $email);
 }
 
 /**

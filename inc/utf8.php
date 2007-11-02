@@ -133,7 +133,7 @@ function utf8_strlen($string){
  * @param string
  * @param integer number of UTF-8 characters offset (from left)
  * @param integer (optional) length in UTF-8 characters from offset
- * @return mixed string or FALSE if failure
+ * @return mixed string or false if failure
  */
 function utf8_substr($str, $offset, $length = null) {
     if(UTF8_MBSTRING){
@@ -249,7 +249,7 @@ function utf8_substr_replace($string, $replacement, $start , $length=0 ){
 function utf8_explode($sep, $str) {
   if ( $sep == '' ) {
     trigger_error('Empty delimiter',E_USER_WARNING);
-    return FALSE;
+    return false;
   }
 
   return preg_split('!'.preg_quote($sep,'!').'!u',$str);
@@ -456,28 +456,83 @@ function utf8_strpos($haystack, $needle,$offset=0) {
 /**
  * Encodes UTF-8 characters to HTML entities
  *
+ * @author Tom N Harris <tnharris@whoopdedo.org>
  * @author <vpribish at shopping dot com>
  * @link   http://www.php.net/manual/en/function.utf8-decode.php
  */
 function utf8_tohtml ($str) {
-  $ret = '';
-  $max = strlen($str);
-  $last = 0;  // keeps the index of the last regular character
-  for ($i=0; $i<$max; $i++) {
-    $c = $str{$i};
-    $c1 = ord($c);
-    if ($c1>>5 == 6) {  // 110x xxxx, 110 prefix for 2 bytes unicode
-      $ret .= substr($str, $last, $i-$last); // append all the regular characters we've passed
-      $c1 &= 31; // remove the 3 bit two bytes prefix
-      $c2 = ord($str{++$i}); // the next byte
-      $c2 &= 63;  // remove the 2 bit trailing byte prefix
-      $c2 |= (($c1 & 3) << 6); // last 2 bits of c1 become first 2 of c2
-      $c1 >>= 2; // c1 shifts 2 to the right
-      $ret .= '&#' . ($c1 * 100 + $c2) . ';'; // this is the fastest string concatenation
-      $last = $i+1;
+    $ret = '';
+    foreach (utf8_to_unicode($str) as $cp) {
+        if ($cp < 0x80)
+            $ret .= chr($cp);
+        elseif ($cp < 0x100)
+            $ret .= "&#$cp;";
+        else
+            $ret .= '&#x'.dechex($cp).';';
     }
-  }
-  return $ret . substr($str, $last, $i); // append the last batch of regular characters
+    return $ret;
+}
+
+/**
+ * Decodes HTML entities to UTF-8 characters
+ *
+ * Convert any &#..; entity to a codepoint,
+ * The entities flag defaults to only decoding numeric entities.
+ * Pass HTML_ENTITIES and named entities, including &amp; &lt; etc.
+ * are handled as well. Avoids the problem that would occur if you 
+ * had to decode "&amp;#38;&#38;amp;#38;"
+ *
+ * unhtmlspecialchars(utf8_unhtml($s)) -> "&#38;&#38;"
+ * utf8_unhtml(unhtmlspecialchars($s)) -> "&&amp#38;"
+ * what it should be                   -> "&#38;&amp#38;"
+ *
+ * @author Tom N Harris <tnharris@whoopdedo.org>
+ * @param  string  $str      UTF-8 encoded string
+ * @param  boolean $entities Flag controlling decoding of named entities.
+ * @return UTF-8 encoded string with numeric (and named) entities replaced.
+ */
+function utf8_unhtml($str, $entities=null) {
+    static $decoder = null;
+    if (is_null($decoder))
+      $decoder = new utf8_entity_decoder();
+    if (is_null($entities))
+        return preg_replace_callback('/(&#([Xx])?([0-9A-Za-z]+);)/m',
+                                     'utf8_decode_numeric', $str);
+    else
+        return preg_replace_callback('/&(#)?([Xx])?([0-9A-Za-z]+);/m', 
+                                     array(&$decoder, 'decode'), $str);
+}
+function utf8_decode_numeric($ent) {
+    switch ($ent[2]) {
+      case 'X':
+      case 'x':
+          $cp = hexdec($ent[3]);
+          break;
+      default:
+          $cp = intval($ent[3]);
+          break;
+    }
+    return unicode_to_utf8(array($cp));
+}
+class utf8_entity_decoder {
+    var $table;
+    function utf8_entity_decoder() {
+        $table = get_html_translation_table(HTML_ENTITIES);
+        $table = array_flip($table);
+        $this->table = array_map(array(&$this,'makeutf8'), $table);
+    }
+    function makeutf8($c) {
+        return unicode_to_utf8(array(ord($c)));
+    }
+    function decode($ent) {
+        if ($ent[1] == '#') {
+            return utf8_decode_numeric($ent);
+        } elseif (array_key_exists($ent[0],$this->table)) {
+            return $this->table[$ent[0]];
+        } else {
+            return $ent[0];
+        }
+    }
 }
 
 /**
@@ -497,7 +552,7 @@ function utf8_tohtml ($str) {
  * @author Harry Fuecks <hfuecks@gmail.com>
  * @param  string  UTF-8 encoded string
  * @param  boolean Check for invalid sequences?
- * @return mixed array of unicode code points or FALSE if UTF-8 invalid
+ * @return mixed array of unicode code points or false if UTF-8 invalid
  * @see    unicode_to_utf8
  * @link   http://hsivonen.iki.fi/php-utf8/
  * @link   http://sourceforge.net/projects/phputf8/
@@ -576,7 +631,7 @@ function utf8_to_unicode($str,$strict=false) {
                             'in UTF-8 at byte '.$i,
                         E_USER_WARNING
                     );
-                return FALSE;
+                return false;
 
             }
 
@@ -618,7 +673,7 @@ function utf8_to_unicode($str,$strict=false) {
                                     E_USER_WARNING
                                 );
 
-                            return FALSE;
+                            return false;
                         }
 
                     }
@@ -645,7 +700,7 @@ function utf8_to_unicode($str,$strict=false) {
                         E_USER_WARNING
                     );
 
-                return FALSE;
+                return false;
             }
         }
     }
@@ -668,7 +723,7 @@ function utf8_to_unicode($str,$strict=false) {
  *
  * @param  array of unicode code points representing a string
  * @param  boolean Check for invalid sequences?
- * @return mixed UTF-8 string or FALSE if array contains invalid code points
+ * @return mixed UTF-8 string or false if array contains invalid code points
  * @author <hsivonen@iki.fi>
  * @author Harry Fuecks <hfuecks@gmail.com>
  * @see    utf8_to_unicode
@@ -707,7 +762,7 @@ function unicode_to_utf8($arr,$strict=false) {
                         'at index: '.$k.', value: '.$arr[$k],
                     E_USER_WARNING
                     );
-                return FALSE;
+                return false;
             }
 
         # 3 byte sequence
@@ -734,7 +789,7 @@ function unicode_to_utf8($arr,$strict=false) {
                 );
 
             // out of range
-            return FALSE;
+            return false;
         }
     }
 
@@ -1027,17 +1082,26 @@ $UTF8_SPECIAL_CHARS = array(
   0x279f, 0x27a0, 0x27a1, 0x27a2, 0x27a3, 0x27a4, 0x27a5, 0x27a6, 0x27a7, 0x27a8,
   0x27a9, 0x27aa, 0x27ab, 0x27ac, 0x27ad, 0x27ae, 0x27af, 0x27b1, 0x27b2, 0x27b3,
   0x27b4, 0x27b5, 0x27b6, 0x27b7, 0x27b8, 0x27b9, 0x27ba, 0x27bb, 0x27bc, 0x27bd,
-  0x27be, 0xf6d9, 0xf6da, 0xf6db, 0xf8d7, 0xf8d8, 0xf8d9, 0xf8da, 0xf8db, 0xf8dc,
+  0x27be, 0x3000, 0x3001, 0x3002, 0x3003, 0x3008, 0x3009, 0x300a, 0x300b, 0x300c,
+  0x300d, 0x300e, 0x300f, 0x3010, 0x3011, 0x3012, 0x3014, 0x3015, 0x3016, 0x3017,
+  0x3018, 0x3019, 0x301a, 0x301b, 0x3036, 
+  0xf6d9, 0xf6da, 0xf6db, 0xf8d7, 0xf8d8, 0xf8d9, 0xf8da, 0xf8db, 0xf8dc,
   0xf8dd, 0xf8de, 0xf8df, 0xf8e0, 0xf8e1, 0xf8e2, 0xf8e3, 0xf8e4, 0xf8e5, 0xf8e6,
   0xf8e7, 0xf8e8, 0xf8e9, 0xf8ea, 0xf8eb, 0xf8ec, 0xf8ed, 0xf8ee, 0xf8ef, 0xf8f0,
   0xf8f1, 0xf8f2, 0xf8f3, 0xf8f4, 0xf8f5, 0xf8f6, 0xf8f7, 0xf8f8, 0xf8f9, 0xf8fa,
   0xf8fb, 0xf8fc, 0xf8fd, 0xf8fe, 0xfe7c, 0xfe7d,
+          0xff01, 0xff02, 0xff03, 0xff04, 0xff05, 0xff06, 0xff07, 0xff08, 0xff09,
+  0xff09, 0xff0a, 0xff0b, 0xff0c, 0xff0d, 0xff0e, 0xff0f, 0xff1a, 0xff1b, 0xff1c,
+  0xff1d, 0xff1e, 0xff1f, 0xff20, 0xff3b, 0xff3c, 0xff3d, 0xff3e, 0xff40, 0xff5b,
+  0xff5c, 0xff5d, 0xff5e, 0xff5f, 0xff60, 0xff61, 0xff62, 0xff63, 0xff64, 0xff65,
+  0xffe0, 0xffe1, 0xffe2, 0xffe3, 0xffe4, 0xffe5, 0xffe6, 0xffe8, 0xffe9, 0xffea,
+  0xffeb, 0xffec, 0xffed, 0xffee,
 );
 
 // utf8 version of above data
 global $UTF8_SPECIAL_CHARS2;
 $UTF8_SPECIAL_CHARS2 = 
-    ' !"#$%&\'()+,/;<=>?@[\]^`{|}~�'.
+    "\x1A".' !"#$%&\'()+,/;<=>?@[\]^`{|}~�'.
     '� ¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½�'.
     '�¿×÷ˇ˘˙˚˛˜˝̣̀́̃̉΄΅·βφϑϒϕϖְֱֲֳִֵֶַָֹֻּֽ־ֿ�'.
     '�ׁׂ׃׳״،؛؟ـًٌٍَُِّْ٪฿‌‍‎‏–—―‗‘’‚“”�'.
@@ -1051,8 +1115,12 @@ $UTF8_SPECIAL_CHARS2 =
     '✲✳✴✵✶✷✸✹✺✻✼✽✾✿❀❁❂❃❄❅❆❇❈❉❊❋�'.
     '�❏❐❑❒❖❘❙❚❛❜❝❞❡❢❣❤❥❦❧❿➉➓➔➘➙➚�'.
     '��➜➝➞➟➠➡➢➣➤➥➦➧➨➩➪➫➬➭➮➯➱➲➳➴➵➶'.
-    '➷➸➹➺➻➼➽➾�'.
-    '�ﹼﹽ';
+    '➷➸➹➺➻➼➽➾'.
+    '　、。〃〈〉《》「」『』【】〒〔〕〖〗〘〙〚〛〶'.
+    '�'.
+    '�ﹼﹽ'.
+    '！＂＃＄％＆＇（）＊＋，－．／：；＜＝＞？＠［＼］＾｀｛｜｝～'.
+    '｟｠｡｢｣､･￠￡￢￣￤￥￦￨￩￪￫￬￭￮';
 
 /**
  * Romanization lookup table

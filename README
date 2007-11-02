@@ -1,53 +1,9 @@
-Dokuwiki - README
+All documentation for DokuWiki is available online
+at http://wiki.splitbrain.org/wiki:dokuwiki
 
-* Version 0.1- 2007-05-30
-* Homepage: http://www.PHProjekt.com
-* Download: http://www.PHProjekt.com/addons/Dokuwiki.zip
-* Copyright (C) 2000-2007 Mayflower GmbH <phprojekt@mayflower.de>
-* Author: Michele Catalano <michele.catalano@mayflower.de>
-* Licence: General Public Licence, GPL
+For Installation Instructions see
+http://wiki.splitbrain.org/wiki:install
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+DokuWiki - 2004-2007 (c) by Andreas Gohr <andi@splitbrain.org>
+See COPYING for license info
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
-* This addon are based on the projekt dokuwiki
-- dokuwiki-2006-11-06 (http://www.splitbrain.org/projects/dokuwiki)
-
-* Requirements:
-- PHProjekt version 5.2 (http://www.phprojekt.com/)
-
-* Aim:
-- This addon add a the Dokuwiki to PHProject.
-
-* Installation: see file INSTALL
-
-* Features:
-- Dokuwiki with the default plugins and template
-
-* Todo:
-- using groups from PHProjekt.
-
-* Tips:
-a) To use the addon on PHProjekt installation who are not in the Docroot, you must change some files (see INSTALL). 
-b) The dokuwiki plugins, how are not distributed with dokuwiki,  are not tested yet. Try them on your own risk.
-c) The dokuwiki use UTF-8 Codepages but the PHProjekt don't use UTF-8. While you are in the dokuwiki addon the special char in the PHProjekt naviagtion bar are not readable.
-
-
-* FAQ:
-
-Q: It is posible to make the dokuwiki only readable to one group?
-A: Yes it is posible but you must edit this hardcode in the doku.php on the addon directory. See the INSTALL.
-
-Q: Can i restrict some parts of the dokuwiki to PHProjekt groups?
-A: No, this is at the moment not posible.

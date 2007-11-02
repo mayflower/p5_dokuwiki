@@ -18,7 +18,7 @@ function checkUpdateMessages(){
     global $conf;
     global $INFO;
     if(!$conf['updatecheck']) return;
-    if($conf['useacl'] && $INFO['perm'] < AUTH_ADMIN) return;
+    if($conf['useacl'] && !$INFO['ismanager']) return;
 
     $cf = $conf['cachedir'].'/messages.txt';
     $lm = @filemtime($cf);
@@ -50,14 +50,14 @@ function checkUpdateMessages(){
  */
 function getVersion(){
   //import version string
-  if(@file_exists('VERSION')){
+  if(@file_exists(DOKU_INC.'VERSION')){
     //official release
-    return 'Release '.trim(io_readfile(DOKU_INC.'/VERSION'));
-  }elseif(is_dir('_darcs')){
+    return 'Release '.trim(io_readfile(DOKU_INC.'VERSION'));
+  }elseif(is_dir(DOKU_INC.'_darcs')){
     //darcs checkout - read last 2000 bytes of inventory
-    $sz   = filesize('_darcs/inventory');
+    $sz   = filesize(DOKU_INC.'_darcs/inventory');
     $seek = max(0,$sz-2000);
-    $fh   = fopen('_darcs/inventory','rb');
+    $fh   = fopen(DOKU_INC.'_darcs/inventory','rb');
     fseek($fh,$seek);
     $chunk = fread($fh,2000);
     fclose($fh);
@@ -164,6 +164,16 @@ function check(){
     msg('Debugging support is disabled',1);
   }
 
+  if($INFO['userinfo']['name']){
+    global $auth;
+    msg('You are currently logged in as '.$_SESSION[DOKU_COOKIE]['auth']['user'].' ('.$INFO['userinfo']['name'].')',0);
+
+    $info = $auth->getUserData($_SESSION[DOKU_COOKIE]['auth']['user']);
+    msg('You are part of the groups '.implode($info['grps'],', '),0);
+  }else{
+    msg('You are currently not logged in',0);
+  }
+
   msg('Your current permission for this page is '.$INFO['perm'],0);
 
   if(is_writable($INFO['filepath'])){
@@ -245,5 +255,51 @@ function dbglog($msg){
     fwrite($fh,date('H:i:s ').$_SERVER['REMOTE_ADDR'].': '.$msg."\n");
     fclose($fh);
   }
+}
+
+/**
+ * Print a reversed, prettyprinted backtrace
+ *
+ * @author Gary Owen <gary_owen@bigfoot.com>
+ */
+function dbg_backtrace(){
+  // Get backtrace
+  $backtrace = debug_backtrace();
+
+  // Unset call to debug_print_backtrace
+  array_shift($backtrace);
+
+  // Iterate backtrace
+  $calls = array();
+  $depth = count($backtrace) - 1;
+  foreach ($backtrace as $i => $call) {
+    $location = $call['file'] . ':' . $call['line'];
+    $function = (isset($call['class'])) ?
+    $call['class'] . $call['type'] . $call['function'] : $call['function'];
+
+    $params = array();
+    if (isset($call['args'])){
+        foreach($call['args'] as $arg){
+            if(is_object($arg)){
+                $params[] = '[Object '.get_class($arg).']';
+            }elseif(is_array($arg)){
+                $params[] = '[Array]';
+            }elseif(is_null($arg)){
+                $param[] = '[NULL]';
+            }else{
+                $params[] = (string) '"'.$arg.'"';
+            }
+        }
+    }
+    $params = implode(', ',$params);
+
+    $calls[$depth - $i] = sprintf('%s(%s) called at %s',
+                          $function,
+                          str_replace("\n", '\n', $params),
+                          $location);
+  }
+  ksort($calls);
+
+  return implode("\n", $calls);
 }
 

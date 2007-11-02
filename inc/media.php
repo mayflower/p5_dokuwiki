@@ -191,11 +191,12 @@ function media_upload($ns,$auth){
     if(empty($id)) $id = $file['name'];
 
     // check extensions
-    list($fext) = mimetype($file['name']);
-    list($iext) = mimetype($id);
+    list($fext,$fmime) = mimetype($file['name']);
+    list($iext,$imime) = mimetype($id);
     if($fext && !$iext){
-        // no extension specified in id - readd original one
-        $id .= '.'.$fext;
+        // no extension specified in id - read original one
+        $id   .= '.'.$fext;
+        $imime = $fmime;
     }elseif($fext && $fext != $iext){
         // extension was changed, print warning
         msg(sprintf($lang['mediaextchange'],$fext,$iext));
@@ -217,6 +218,19 @@ function media_upload($ns,$auth){
             msg($lang['uploadexist'],0);
             return false;
         }
+        // check for valid content
+        $ok = media_contentcheck($file['tmp_name'],$imime);
+        if($ok == -1){
+            msg(sprintf($lang['uploadbadcontent'],".$iext"),-1);
+            return false;
+        }elseif($ok == -2){
+            msg($lang['uploadspam'],-1);
+            return false;
+        }elseif($ok == -3){
+            msg($lang['uploadxss'],-1);
+            return false;
+        }
+
         // prepare directory
         io_createNamespace($id, 'media');
         if(move_uploaded_file($file['tmp_name'], $fn)) {
@@ -225,6 +239,7 @@ function media_upload($ns,$auth){
             // (Should normally chmod to $conf['fperm'] only if $conf['fperm'] is set.)
             chmod($fn, $conf['fmode']);
             msg($lang['uploadsucc'],1);
+            media_notify($id,$fn,$imime);
             return $id;
         }else{
             msg($lang['uploadfail'],-1);
@@ -235,7 +250,79 @@ function media_upload($ns,$auth){
     return false;
 }
 
+/**
+ * This function checks if the uploaded content is really what the
+ * mimetype says it is. We also do spam checking for text types here.
+ *
+ * We need to do this stuff because we can not rely on the browser
+ * to do this check correctly. Yes, IE is broken as usual.
+ *
+ * @author Andreas Gohr <andi@splitbrain.org>
+ * @link   http://www.splitbrain.org/blog/2007-02/12-internet_explorer_facilitates_cross_site_scripting
+ * @fixme  check all 26 magic IE filetypes here?
+ */
+function media_contentcheck($file,$mime){
+    global $conf;
+    if($conf['iexssprotect']){
+        $fh = @fopen($file, 'rb');
+        if($fh){
+            $bytes = fread($fh, 256);
+            fclose($fh);
+            if(preg_match('/<(script|a|img|html|body|iframe)[\s>]/i',$bytes)){
+                return -3;
+            }
+        }
+    }
+    if(substr($mime,0,6) == 'image/'){
+        $info = @getimagesize($file);
+        if($mime == 'image/gif' && $info[2] != 1){
+            return -1;
+        }elseif($mime == 'image/jpeg' && $info[2] != 2){
+            return -1;
+        }elseif($mime == 'image/png' && $info[2] != 3){
+            return -1;
+        }
+        # fixme maybe check other images types as well
+    }elseif(substr($mime,0,5) == 'text/'){
+        global $TEXT;
+        $TEXT = io_readFile($file);
+        if(checkwordblock()){
+            return -2;
+        }
+    }
+    return 0;
+}
 
+/**
+ * Send a notify mail on uploads
+ *
+ * @author Andreas Gohr <andi@splitbrain.org>
+ */
+function media_notify($id,$file,$mime){
+    global $lang;
+    global $conf;
+    if(empty($conf['notify'])) return; //notify enabled?
+
+    $text = rawLocale('uploadmail');
+    $text = str_replace('@DATE@',date($conf['dformat']),$text);
+    $text = str_replace('@BROWSER@',$_SERVER['HTTP_USER_AGENT'],$text);
+    $text = str_replace('@IPADDRESS@',$_SERVER['REMOTE_ADDR'],$text);
+    $text = str_replace('@HOSTNAME@',gethostbyaddr($_SERVER['REMOTE_ADDR']),$text);
+    $text = str_replace('@DOKUWIKIURL@',DOKU_URL,$text);
+    $text = str_replace('@USER@',$_SERVER['REMOTE_USER'],$text);
+    $text = str_replace('@MIME@',$mime,$text);
+    $text = str_replace('@MEDIA@',ml($id,'',true,'&',true),$text);
+    $text = str_replace('@SIZE@',filesize_h(filesize($file)),$text);
+
+    $from = $conf['mailfrom'];
+    $from = str_replace('@USER@',$_SERVER['REMOTE_USER'],$from);
+    $from = str_replace('@NAME@',$INFO['userinfo']['name'],$from);
+    $from = str_replace('@MAIL@',$INFO['userinfo']['mail'],$from);
+
+    $subject = '['.$conf['title'].'] '.$lang['mail_upload'].' '.$id;
+
+    mail_send($conf['notify'],$subject,$text,$from);
+}
 
 /**
  * List all files in a given Media namespace
@@ -315,6 +402,7 @@ function media_fileactions($item,$auth){
  */
 function media_printfile($item,$auth,$jump){
     global $lang;
+    global $conf;
 
     // Prepare zebra coloring
     // I always wanted to use this variable name :-D
@@ -345,6 +433,8 @@ function media_printfile($item,$auth,$jump){
         $info .= (int) $item['meta']->getField('File.Height');
         $info .= ' ';
     }
+    $info .= '<i>'.date($conf['dformat'],$item['mtime']).'</i>';
+    $info .= ' ';
     $info .= filesize_h($item['size']);
 
     // ouput
@@ -352,7 +442,7 @@ function media_printfile($item,$auth,$jump){
     echo '<a name="h_'.$item['id'].'" class="'.$class.'">'.$file.'</a> ';
     echo '<span class="info">('.$info.')</span>'.NL;
     media_fileactions($item,$auth);
-    echo '<div class="example" id="ex_'.$item['id'].'">';
+    echo '<div class="example" id="ex_'.str_replace(':','_',$item['id']).'">';
     echo $lang['mediausage'].' <code>{{:'.$item['id'].'}}</code>';
     echo '</div>';
     if($item['isimg']) media_printimgdetail($item);
@@ -422,6 +512,7 @@ function media_uploadform($ns, $auth){
     <form action="<?php echo DOKU_BASE.basename(DOKU_INC).'/';?>lib/exe/mediamanager.php"
           method="post" enctype="multipart/form-data" class="upload">
       <fieldset>
+        <legend class="hidden"><?php echo $lang['btn_upload']?></legend>
         <input type="hidden" name="ns" value="<?php echo hsc($ns)?>" />
 
         <p>

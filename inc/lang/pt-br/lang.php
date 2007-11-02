@@ -9,6 +9,10 @@
  */
 $lang['encoding']     = 'utf-8';
 $lang['direction']    = 'ltr';
+$lang['doublequoteopening']  = '“';//&ldquo;
+$lang['doublequoteclosing']  = '”';//&rdquo;
+$lang['singlequoteopening']  = '‘';//&lsquo;
+$lang['singlequoteclosing']  = '’';//&rsquo;
 
 $lang['btn_edit']     = 'Editar essa página';
 $lang['btn_source']   = 'Mostrar código fonte';
@@ -40,7 +44,7 @@ $lang['btn_profile']     = 'Atualizar perfil';
 $lang['btn_reset']       = 'Limpar';
 $lang['btn_resendpwd']   = 'Enviar nova senha';
 
-$lang['loggedinas']   = 'Autenticar-se como';
+$lang['loggedinas']   = 'Autenticado(a) como';
 $lang['user']         = 'Nome de usuário';
 $lang['pass']         = 'Senha';
 $lang['newpass']      = 'Nova senha';

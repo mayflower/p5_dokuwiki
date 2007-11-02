@@ -58,12 +58,12 @@ class Doku_Parser {
 
     var $modes = array();
 
-    var $connected = FALSE;
+    var $connected = false;
 
     function addBaseMode(& $BaseMode) {
         $this->modes['base'] = & $BaseMode;
         if ( !$this->Lexer ) {
-            $this->Lexer = & new Doku_Lexer($this->Handler,'base', TRUE);
+            $this->Lexer = & new Doku_Lexer($this->Handler,'base', true);
         }
         $this->modes['base']->Lexer = & $this->Lexer;
     }
@@ -106,7 +106,7 @@ class Doku_Parser {
             $this->modes[$mode]->postConnect();
         }
 
-        $this->connected = TRUE;
+        $this->connected = true;
     }
 
     function parse($doc) {
@@ -118,7 +118,7 @@ class Doku_Parser {
             $this->Handler->_finalize();
             return $this->Handler->calls;
         } else {
-            return FALSE;
+            return false;
         }
     }
 
@@ -644,7 +644,7 @@ class Doku_Parser_Mode_smiley extends Doku_Parser_Mode {
     }
 
     function preConnect() {
-        if(!count($this->smileys)) return;
+        if(!count($this->smileys) || $this->pattern != '') return;
 
         $sep = '';
         foreach ( $this->smileys as $smiley ) {
@@ -678,7 +678,7 @@ class Doku_Parser_Mode_wordblock extends Doku_Parser_Mode {
 
     function preConnect() {
 
-        if ( count($this->badwords) == 0 ) {
+        if ( count($this->badwords) == 0 || $this->pattern != '') {
             return;
         }
 
@@ -702,9 +702,6 @@ class Doku_Parser_Mode_wordblock extends Doku_Parser_Mode {
 }
 
 //-------------------------------------------------------------------
-/**
-* @TODO Quotes and 640x480 are not supported - just straight replacements here
-*/
 class Doku_Parser_Mode_entity extends Doku_Parser_Mode {
     // A list
     var $entities = array();
@@ -715,7 +712,7 @@ class Doku_Parser_Mode_entity extends Doku_Parser_Mode {
     }
 
     function preConnect() {
-        if(!count($this->entities)) return;
+        if(!count($this->entities) || $this->pattern != '') return;
 
         $sep = '';
         foreach ( $this->entities as $entity ) {
@@ -758,19 +755,30 @@ class Doku_Parser_Mode_multiplyentity extends Doku_Parser_Mode {
 class Doku_Parser_Mode_quotes extends Doku_Parser_Mode {
 
     function connectTo($mode) {
+        global $conf;
+
+        $ws   =  '\s/\#~:+=&%@\-\x28\x29\]\[{}><"\'';   // whitespace
+        $punc =  ';,\.?!';
+
+        if($conf['typography'] == 2){
+            $this->Lexer->addSpecialPattern(
+                        "(?<=^|[$ws])'(?=[^$ws$punc])",$mode,'singlequoteopening'
+                    );
+            $this->Lexer->addSpecialPattern(
+                        "(?<=^|[^$ws]|[$punc])'(?=$|[$ws$punc])",$mode,'singlequoteclosing'
+                    );
+            $this->Lexer->addSpecialPattern(
+                        "(?<=^|[^$ws$punc])'(?=$|[^$ws$punc])",$mode,'apostrophe'
+                    );
+        }
 
         $this->Lexer->addSpecialPattern(
-                    '(?<=^|\s)\'(?=\S)',$mode,'singlequoteopening'
+                    "(?<=^|[$ws])\"(?=[^$ws$punc])",$mode,'doublequoteopening'
                 );
         $this->Lexer->addSpecialPattern(
-                    '(?<=^|\S)\'',$mode,'singlequoteclosing'
+                    "\"",$mode,'doublequoteclosing'
                 );
-        $this->Lexer->addSpecialPattern(
-                    '(?<=^|\s)"(?=\S)',$mode,'doublequoteopening'
-                );
-        $this->Lexer->addSpecialPattern(
-                    '(?<=^|\S)"',$mode,'doublequoteclosing'
-                );
+
 
     }
 
@@ -837,6 +845,7 @@ class Doku_Parser_Mode_externallink extends Doku_Parser_Mode {
     var $patterns = array();
 
     function preConnect() {
+        if(count($this->patterns)) return;
 
         $ltrs = '\w';
         $gunk = '/\#~:.?+=&%@!\-';
@@ -854,6 +863,7 @@ class Doku_Parser_Mode_externallink extends Doku_Parser_Mode {
     }
 
     function connectTo($mode) {
+
         foreach ( $this->patterns as $pattern ) {
             $this->Lexer->addSpecialPattern($pattern,$mode,'externallink');
         }
@@ -914,7 +924,8 @@ class Doku_Parser_Mode_windowssharelink extends Doku_Parser_Mode {
 class Doku_Parser_Mode_emaillink extends Doku_Parser_Mode {
 
     function connectTo($mode) {
-        $this->Lexer->addSpecialPattern("<[\w0-9\-_.]+?@[\w\-]+\.[\w\-\.]+\.*[\w]+>",$mode,'emaillink');
+        // pattern below is defined in inc/mail.php
+        $this->Lexer->addSpecialPattern('<'.PREG_PATTERN_VALID_EMAIL.'>',$mode,'emaillink');
     }
 
     function getSort() {

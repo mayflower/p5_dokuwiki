@@ -80,6 +80,7 @@ $lang['usewordblock']= 'Bloker spam baseret på ordliste';
 $lang['indexdelay']  = 'Tidsforsinkelse af indeksering';
 $lang['relnofollow'] = 'Brug rel="nofollow"';
 $lang['mailguard']   = 'Slør email adresser';
+$lang['iexssprotect']= 'Tjek uploadede filer for mulig skadelig JavaScript eller HTML kode.';
 
 /* Authentication Options */
 $lang['useacl']      = 'Benyt adgangskontrollister';
@@ -88,6 +89,7 @@ $lang['authtype']    = 'Bekræftelsesbackend';
 $lang['passcrypt']   = 'Passwordkrypteringsmetode';
 $lang['defaultgroup']= 'Standardgruppe';
 $lang['superuser']   = 'Superbruger';
+$lang['manager']     = 'Bestyrer - en gruppe eller bruger med adgang til bestemte styrende funktioner';
 $lang['profileconfirm'] = 'Bekræft profilændringer med password';
 $lang['disableactions'] = 'Slå DokuWiki muligheder fra';
 $lang['disableactions_check'] = 'Check';
@@ -121,11 +123,13 @@ $lang['compress']    = 'Komprimer CSS og Javascript filer';
 $lang['hidepages']   = 'Skjul matchende sider (regulære udtryk)';
 $lang['send404']     = 'Send "HTTP 404/Page Not Found" for ikke-eksisterende sider';
 $lang['sitemap']     = 'Generer Google sitemap (dage)';
+$lang['broken_iua']  = 'Er ignore_user_abort funktionen i stykker p� dit system? Dette kunne forudsage et ikke virkende s�geindeks. IIS+PHP/CGI er kendt for ikke at virke. Se <a href="http://bugs.splitbrain.org/?do=details&amp;task_id=852">Bug 852</a> for mere information.';
 
 $lang['rss_type']    = 'XML feed type';
 $lang['rss_linkto']  = 'XML feed linker til';
 $lang['rss_update']  = 'XML feed opdateringsinterval (sek)';
 $lang['recent_days'] = 'Hvor mange nye ændringer der skal beholdes (dage)';
+$lang['rss_show_summary'] = 'XML feed vis resume i titlen';
 
 /* Target options */
 $lang['target____wiki']      = 'Destinationsvindue til interne links';

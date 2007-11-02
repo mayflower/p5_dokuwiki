@@ -4,8 +4,8 @@
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Andreas Gohr <andi@splitbrain.org>
- * @author     Björn Schotte <schotte@mayflower.de>
  */
+ 
 define('PHPDW_MODULE_NAME', basename(dirname(__FILE__)));
 
 require_once(PATH_PRE.'lib/dbman_lib.inc.php');
@@ -35,4 +35,5 @@ include_once 'doku.php';
 echo "</div>\n";
 chdir($__olddir);
 // header("Location: doku.php");
+
 ?>

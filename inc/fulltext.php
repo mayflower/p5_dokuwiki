@@ -11,6 +11,13 @@
 
 
 /**
+ * Wrapper around preg_quote adding the default delimiter
+ */
+function ft_preg_quote_cb($string){
+    return preg_quote($string,'/');
+}
+
+/**
  * The fulltext search
  *
  * Returns a list of matching documents for the given query
@@ -25,6 +32,7 @@ function ft_pageSearch($query,&$poswords){
     $words  = array_merge($q['and'],$q['not']);
     if(!count($words)) return array();
     $result = idx_lookup($words);
+    if(!count($result)) return array();
 
     // merge search results with query
     foreach($q['and'] as $pos => $w){
@@ -69,7 +77,7 @@ function ft_pageSearch($query,&$poswords){
     if(count($q['phrases'])){
         //build a regexp
         $q['phrases'] = array_map('utf8_strtolower',$q['phrases']);
-        $q['phrases'] = array_map('preg_quote',$q['phrases']);
+        $q['phrases'] = array_map('ft_preg_quote_cb',$q['phrases']);
         $regex = '('.join('|',$q['phrases']).')';
         // check the source of all documents for the exact phrases
         foreach(array_keys($docs) as $id){
@@ -149,8 +157,8 @@ function ft_backlinks($id){
 function ft_pageLookup($id,$pageonly=true){
     global $conf;
     $id    = preg_quote($id,'/');
-    $pages = file($conf['cachedir'].'/page.idx');
-    $pages = array_values(preg_grep('/'.$id.'/',$pages));
+    $pages = file($conf['indexdir'].'/page.idx');
+    if($id) $pages = array_values(preg_grep('/'.$id.'/',$pages));
 
     $cnt = count($pages);
     for($i=0; $i<$cnt; $i++){
@@ -176,6 +184,7 @@ function ft_pageLookup($id,$pageonly=true){
         }
     }
 
+    $pages = array_map('trim',$pages);
     sort($pages);
     return $pages;
 }
@@ -248,7 +257,7 @@ function ft_snippet($id,$poswords){
 
     $m = "\1";
     $snippets = preg_replace('#'.$re.'#iu',$m.'$1'.$m,$snippets);
-    $snippet = preg_replace('#'.$m.'([^'.$m.']*?)'.$m.'#iu','<span class="search_hit">$1</span>',hsc(join('... ',$snippets)));
+    $snippet = preg_replace('#'.$m.'([^'.$m.']*?)'.$m.'#iu','<strong class="search_hit">$1</strong>',hsc(join('... ',$snippets)));
 
     return $snippet;
 }
@@ -270,7 +279,8 @@ function ft_resultCombine($args){
     }
 
     $result = array();
-    foreach ($args[0] as $key1 => $value1) {
+    if ($array_count > 1) {
+      foreach ($args[0] as $key1 => $value1) {
         for ($i = 1; $i !== $array_count; $i++) {
             foreach ($args[$i] as $key2 => $value2) {
                 if ((string) $key1 === (string) $key2) {
@@ -279,6 +289,7 @@ function ft_resultCombine($args){
                 }
             }
         }
+      }
     }
     return $result;
 }

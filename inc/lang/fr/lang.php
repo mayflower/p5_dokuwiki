@@ -13,13 +13,17 @@
  */
 $lang['encoding']   = 'utf-8';
 $lang['direction']  = 'ltr';
+$lang['doublequoteopening']  = '“';//&ldquo;
+$lang['doublequoteclosing']  = '”';//&rdquo;
+$lang['singlequoteopening']  = '‘';//&lsquo;
+$lang['singlequoteclosing']  = '’';//&rsquo;
 
 $lang['btn_edit']   = 'Éditer cette page';
 $lang['btn_source'] = 'Afficher le texte source';
 $lang['btn_show']   = 'Afficher la page';
 $lang['btn_create'] = 'Créer cette page';
 $lang['btn_search'] = 'Rechercher';
-$lang['btn_save']   = 'Sauver';
+$lang['btn_save']   = 'Enregistrer';
 $lang['btn_preview']= 'Aperçu';
 $lang['btn_top']    = 'Haut de page';
 $lang['btn_newer']  = '<< plus récent';
@@ -33,7 +37,7 @@ $lang['btn_secedit']= 'Éditer';
 $lang['btn_login']  = 'Connexion';
 $lang['btn_logout'] = 'Déconnexion';
 $lang['btn_admin']  = 'Admin';
-$lang['btn_update'] = 'Mise à jour';
+$lang['btn_update'] = 'Rafraîchir';
 $lang['btn_delete'] = 'Effacer';
 $lang['btn_back']   = 'Retour';
 $lang['btn_backlink']    = 'Liens vers cette page';
@@ -47,7 +51,7 @@ $lang['btn_draft']    = 'Éditer brouillon';
 $lang['btn_recover']  = 'Récupérer brouillon';
 $lang['btn_draftdel'] = 'Effacer brouillon';
 
-$lang['loggedinas'] = 'Connecté en tant que';
+$lang['loggedinas'] = 'Connecté en tant que ';
 $lang['user']       = 'Utilisateur';
 $lang['pass']       = 'Mot de passe';
 $lang['newpass']    = 'Nouveau mot de passe';
@@ -70,14 +74,14 @@ $lang['regmailfail'] = 'Il semble y avoir un problème à l\'envoi du courriel.
 $lang['regbadmail']  = 'L\'adresse mail semble incorrecte - Si vous pensez que c\'est une erreur, contactez l\'administrateur.';
 $lang['regbadpass'] = 'Les deux mots de passe donnés sont différents, recommencez SVP';
 $lang['regpwmail']   = 'Votre mot de passe DokuWiki';
-$lang['reghere']     = 'Vous n\'avez pas encore de compte ? Enregistrez-vous ici';
+$lang['reghere']     = 'Vous n\'avez pas encore de compte ? Enregistrez-vous ici ';
 
 $lang['profna']       = 'Ce wiki ne permet pas de modifier les profils';
 $lang['profnochange'] = 'Pas de changement, rien à faire.';
 $lang['profnoempty']  = 'Un nom ou une adresse de courriel vide n\'est pas permis.';
 $lang['profchanged']  = 'Mise à jour du profil réussie.';
 
-$lang['pwdforget'] = 'Mot de passe oublié ? Faites-vous envoyer votre mot de passe';
+$lang['pwdforget'] = 'Mot de passe oublié ? Faites-vous envoyer votre mot de passe ';
 $lang['resendna']  = 'Ce wiki ne permet pas le renvoi de mot de passe.';
 $lang['resendpwd'] = 'Renvoyer le mot de passe de';
 $lang['resendpwdmissing'] = 'Désolé, vous devez remplir tous les champs.';
@@ -103,6 +107,9 @@ $lang['uploadsucc']  = 'Envoi réussi.';
 $lang['uploadfail']  = 'L\'envoi n\'a pas réussi. Veuillez contacter l\'administrateur';
 $lang['uploadwrong'] = 'Envoi refusé. Cette extension de fichier est interdite';
 $lang['uploadexist'] = 'Le fichier existe. Rien n\'est fait';
+$lang['uploadbadcontent'] = 'Le contenu envoyé ne correspond pas à l\'extension du fichier %s.';
+$lang['uploadspam']  = 'L\'envoi a été bloqué par la liste noire antispam.';
+$lang['uploadxss']   = 'L\'envoi a été bloqué en raison car son contenu est peut-être malveillant.';
 $lang['deletesucc']  = 'Le fichier "%s" a été effacé';
 $lang['deletefail']  = 'Le fichier "%s" n\'a pu être effacé - vérifier les permissions';
 $lang['mediainuse']  = 'Le fichier "%s" n\'a pas été effacé - il est en cours d\'utilisation';
@@ -115,7 +122,7 @@ $lang['mediausage']  = 'Utilisez la syntaxe suivante pour faire référence à c
 $lang['mediaview']   = 'Voir fichier original';
 $lang['mediaroot']   = 'root';
 $lang['mediaupload'] = 'Envoyer un fichier dans la catégorie courante ici. Pour créer des sous-catégories, préfixez le nom du fichier par le nom de la sous-catégorie séparée par un double point.';
-$lang['mediaextchange'] = 'Extension du fichier changée de .%s en .%s!';
+$lang['mediaextchange'] = 'Extension du fichier changée de .%s en .%s !';
 
 $lang['reference']   = 'Références pour';
 $lang['ref_inuse']   = 'Le fichier ne peut être effacé, il est toujours utilisé par les pages suivantes:';
@@ -135,11 +142,13 @@ $lang['by']         = 'par';
 $lang['deleted']    = 'effacée';
 $lang['created']    = 'créée';
 $lang['restored']   = 'ancienne révision restaurée';
+$lang['external_edit'] = 'édition externe';
 $lang['summary']    = 'Résumé';
 
 $lang['mail_newpage'] = 'page ajoutée :';
 $lang['mail_changed'] = 'page changée :';
 $lang['mail_new_user'] = 'Nouvel utilisateur :';
+$lang['mail_upload']   = 'fichier envoyé:';
 
 $lang['nosmblinks'] = 'Les liens vers les partages Windows ne fonctionnent qu\'avec Microsoft Internet Explorer.\nVous pouvez toujours faire un copier/coller du lien.';
 
@@ -203,15 +212,15 @@ $lang['authtempfail']    = 'L\'authentification est temporairement indisponible.
 $lang['i_chooselang'] = 'Choisissez votre langue';
 $lang['i_installer']  = 'DokuWiki Installeur';
 $lang['i_wikiname']   = 'Nom du Wiki';
-$lang['i_enableacl']  = 'Activer ACL (recommandé)';
+$lang['i_enableacl']  = 'Activer les ACL (recommandé)';
 $lang['i_superuser']  = 'Super-utilisateur';
-$lang['i_problems']   = 'The installer found some problems, indicated below. You can not continue until you have fixed them.';
-$lang['i_modified']   = 'Pour des raisons de sécurité ce script ne fonctionne qu\'avec une installation neuve et non modifiée de Dokuwiki.
-                         Vous devriez soit ré-extraire les fichiers depuis le paquet téléchargé soit consulter les
-                         <a href="http://wiki.splitbrain.org/wiki:install">instructions d\'installation de Dokuwiki</a>';
+$lang['i_problems']   = 'L\'installeur a détecté les problèmes indiqués ci-dessous. Vous ne pouvez poursuivre tant qu\'ils n\'auront pas été corrigés.';
+$lang['i_modified']   = 'Pour des raisons de sécurité ce script ne fonctionne qu\'avec une installation neuve et non modifiée de DokuWiki.
+                         Vous devriez ré-extraire les fichiers depuis le paquet téléchargé ou consulter les
+                         <a href="http://wiki.splitbrain.org/wiki:install">instructions d\'installation de DokuWiki</a>';
 $lang['i_funcna']     = 'La fonction PHP <code>%s</code> n\'est pas disponible. Peut-être que votre hébergeur l\'a désactivée ?';
 $lang['i_phpver']     = 'Votre version de PHP (<code>%s</code>) est antérieure à la version requise (<code>%s</code>. Vous devez mettre à jour votre installation de PHP.';
-$lang['i_permfail']   = '<code>%s</code> n\'est pas accessible en écriture DokuWiki. Vous devez corriger les permissions de ce répertoire !';
+$lang['i_permfail']   = '<code>%s</code> n\'est pas accessible en écriture pour DokuWiki. Vous devez corriger les permissions de ce répertoire !';
 $lang['i_confexists'] = '<code>%s</code> existe déjà';
 $lang['i_writeerr']   = 'Impossible de créer <code>%s</code>. Vous devez vérifier les permissions des répertoires/fichiers et créer le fichier manuellement.';
 $lang['i_badhash']    = 'dokuwiki.php non reconnu ou modifié (hash=<code>%s</code>)';

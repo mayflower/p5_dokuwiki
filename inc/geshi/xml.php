@@ -2,12 +2,10 @@
 /*************************************************************************************
  * xml.php
  * -------
- * Author: Nigel McNie (oracle.shinoda@gmail.com)
+ * Author: Nigel McNie (nigel@geshi.org)
  * Copyright: (c) 2004 Nigel McNie (http://qbnz.com/highlighter/)
- * Release Version: 1.0.7.15
- * CVS Revision Version: $Revision: 1.1.1.1 $
+ * Release Version: 1.0.7.19
  * Date Started: 2004/09/01
- * Last Modified: $Date: 2007/03/07 13:00:40 $
  *
  * XML language file for GeSHi. Based on the idea/file by Christian Weiske
  *

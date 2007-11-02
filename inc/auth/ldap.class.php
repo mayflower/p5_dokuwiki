@@ -192,7 +192,7 @@ class auth_ldap extends auth_basic {
                 if(is_array($key)) {
                     // use regexp to clean up user_result
                     list($key, $regexp) = each($key);
-                    foreach($user_result[$key] as $grp){
+                    if($user_result[$key]) foreach($user_result[$key] as $grp){
                         if (preg_match($regexp,$grp,$match)) {
                             if($localkey == 'grps') {
                                 $info[$localkey][] = $match[1];
@@ -261,9 +261,23 @@ class auth_ldap extends auth_basic {
             } else {
                 $value = $placeholders[$match];
             }
+            $value = $this->_filterEscape($value);
             $filter = str_replace('%{'.$match.'}', $value, $filter);
         }
         return $filter;
+    }
+
+    /**
+     * Escape a string to be used in a LDAP filter
+     *
+     * Ported from Perl's Net::LDAP::Util escape_filter_value
+     *
+     * @author Andreas Gohr
+     */
+    function _filterEscape($string){
+        return preg_replace('/([\x00-\x1F\*\(\)\\\\])/e',
+                            '"\\\\\".join("",unpack("H2","$1"))',
+                            $string);
     }
 
     /**

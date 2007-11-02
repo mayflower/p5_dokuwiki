@@ -41,6 +41,8 @@ $dokuwiki_hash = array(
     '2006-03-05'   => '51295727f79ab9af309a2fd9e0b61acc',
     '2006-03-09'   => '51295727f79ab9af309a2fd9e0b61acc',
     '2006-11-06'   => 'b3a8af76845977c2000d85d6990dd72b',
+    '2007-05-24'   => 'd80f2740c84c4a6a791fd3c7a353536f',
+    '2007-06-26'   => 'b3ca19c7a654823144119980be73cd77',
 );
 
 
@@ -309,8 +311,6 @@ EOT;
         }else{
             $output .=  "*               @ALL          8\n";
         }
-
-        $output .=  "*               @admin      255\n";
         $ok = $ok && fileWrite(DOKU_LOCAL.'acl.auth.php', $output);
     }
     return $ok;
@@ -395,6 +395,7 @@ function check_permissions(){
         'meta'      => DOKU_INC.'data/meta',
         'cache'     => DOKU_INC.'data/cache',
         'locks'     => DOKU_INC.'data/locks',
+        'index'     => DOKU_INC.'data/index',
     );
 
     $ok = true;
@@ -427,7 +428,8 @@ function check_functions(){
                          'file file_exists fseek flush filesize ftell fopen '.
                          'glob header ignore_user_abort ini_get mail mkdir '.
                          'ob_start opendir parse_ini_file readfile realpath '.
-                         'rename rmdir serialize session_start unlink usleep');
+                         'rename rmdir serialize session_start unlink usleep '.
+                         'preg_replace');
 
     if (!function_exists('mb_substr')) {
       $funcs[] = 'utf8_encode';

@@ -14,6 +14,8 @@
  * Call the needed action handlers
  *
  * @author Andreas Gohr <andi@splitbrain.org>
+ * @triggers ACTION_ACT_PREPROCESS
+ * @triggers ACTION_HEADERS_SEND
  */
 function act_dispatch(){
   global $INFO;
@@ -48,7 +50,8 @@ function act_dispatch(){
     $ACT = act_permcheck($ACT);
 
     //register
-    if($ACT == 'register' && register()){
+    $nil = array();
+    if($ACT == 'register' && $_POST['save'] && register()){
       $ACT = 'login';
     }
 
@@ -146,7 +149,7 @@ function act_clean($act){
 
   //remove all bad chars
   $act = strtolower($act);
-  $act = preg_replace('/[^a-z_]+/','',$act);
+  $act = preg_replace('/[^1-9a-z_]+/','',$act);
 
   if($act == 'export_html') $act = 'export_xhtml';
   if($act == 'export_htmlbody') $act = 'export_xhtmlbody';
@@ -204,7 +207,13 @@ function act_permcheck($act){
   }elseif($act == 'resendpwd'){
     $permneed = AUTH_NONE;
   }elseif($act == 'admin'){
-    $permneed = AUTH_ADMIN;
+    if($INFO['ismanager']){
+      // if the manager has the needed permissions for a certain admin
+      // action is checked later
+      $permneed = AUTH_READ;
+    }else{
+      $permneed = AUTH_ADMIN;
+    }
   }else{
     $permneed = AUTH_READ;
   }
@@ -298,8 +307,10 @@ function act_auth($act){
   global $INFO;
 
   //already logged in?
-  if($_SERVER['REMOTE_USER'] && $act=='login')
-    return 'show';
+  if($_SERVER['REMOTE_USER'] && $act=='login'){
+    header("Location: ".wl($ID,'',true));
+    exit;
+  }
 
   //handle logout
   if($act=='logout'){
@@ -381,15 +392,13 @@ function act_export($act){
     exit;
   }
 
-  // try to run renderer #FIXME use cached instructions
+  // try to run renderer
   $mode = substr($act,7);
-  $text = p_render($mode,p_get_instructions(rawWiki($ID,$REV)),$info);
+  $text = p_cached_output(wikiFN($ID,$REV), $mode);
   if(!is_null($text)){
     print $text;
     exit;
   }
-
-
 
   return 'show';
 }

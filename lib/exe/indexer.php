@@ -13,11 +13,14 @@ require_once(DOKU_INC.'inc/events.php');
 session_write_close();  //close session
 if(!defined('NL')) define('NL',"\n");
 
+// Version tag used to force rebuild on upgrade
+define('INDEXER_VERSION', 1);
+
 // keep running after browser closes connection
 @ignore_user_abort(true);
 
 // check if user abort worked, if yes send output early
-if(@ignore_user_abort()){
+if(@ignore_user_abort() && !$conf['broken_iua']){
     sendGIF(); // send gif
     $defer = false;
 }else{
@@ -120,14 +123,31 @@ function runIndexer(){
     global $conf;
     print "runIndexer(): started".NL;
 
+    // Move index files (if needed)
+    // Uses the importoldindex plugin to upgrade the index automatically.
+    // FIXME: Remove this from runIndexer when it is no longer needed.
+    if (@file_exists($conf['cachedir'].'/page.idx') &&
+        (!@file_exists($conf['indexdir'].'/page.idx') ||
+         !filesize($conf['indexdir'].'/page.idx'))  &&
+        !@file_exists($conf['indexdir'].'/index_importing')) {
+        echo "trigger TEMPORARY_INDEX_UPGRADE_EVENT\n";
+        $tmp = array(); // no event data
+        trigger_event('TEMPORARY_INDEX_UPGRADE_EVENT', $tmp);
+    }
+
     $ID = cleanID($_REQUEST['id']);
     if(!$ID) return false;
 
     // check if indexing needed
-    $last = @filemtime(metaFN($ID,'.indexed'));
-    if($last > @filemtime(wikiFN($ID))){
-        print "runIndexer(): index for $ID up to date".NL;
-        return false;
+    $idxtag = metaFN($ID,'.indexed');
+    if(@file_exists($idxtag)){
+        if(io_readFile($idxtag) >= INDEXER_VERSION){
+            $last = @filemtime($idxtag);
+            if($last > @filemtime(wikiFN($ID))){
+                print "runIndexer(): index for $ID up to date".NL;
+                return false;
+            }
+        }
     }
 
     // try to aquire a lock
@@ -151,7 +171,7 @@ function runIndexer(){
     idx_addPage($ID);
 
     // we're finished - save and free lock
-    io_saveFile(metaFN($ID,'.indexed'),' ');
+    io_saveFile(metaFN($ID,'.indexed'),INDEXER_VERSION);
     @rmdir($lock);
     print "runIndexer(): finished".NL;
     return true;
@@ -186,7 +206,7 @@ function metaUpdate(){
                     0,true);
 
     $meta = array();
-    if(count($info)){
+    if(!empty($info)){
         $meta['date']['created'] = $info[0][1];
         foreach($info as $item){
             if($item[4] != '*'){
@@ -226,20 +246,25 @@ function runSitemapper(){
     }
     print "runSitemapper(): using $sitemap".NL;
 
-    if(!is_writable(DOKU_INC.$sitemap)) return false;
+    if(@file_exists(DOKU_INC.$sitemap)){
+        if(!is_writable(DOKU_INC.$sitemap)) return false;
+    }else{
+        if(!is_writable(DOKU_INC)) return false;
+    }
+
     if(@filesize(DOKU_INC.$sitemap) && 
        @filemtime(DOKU_INC.$sitemap) > (time()-($conf['sitemap']*60*60*24))){
        print 'runSitemapper(): Sitemap up to date'.NL;
        return false;
     }
 
-    $pages = file($conf['cachedir'].'/page.idx');
+    $pages = file($conf['indexdir'].'/page.idx');
     print 'runSitemapper(): creating sitemap using '.count($pages).' pages'.NL;
 
     // build the sitemap
     ob_start();
     print '<?xml version="1.0" encoding="UTF-8"?>'.NL;
-    print '<urlset xmlns="http://www.google.com/schemas/sitemap/0.84">'.NL;
+    print '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'.NL;
     foreach($pages as $id){
         $id = trim($id);
         $file = wikiFN($id);
@@ -262,13 +287,33 @@ function runSitemapper(){
     //save the new sitemap
     io_saveFile(DOKU_INC.$sitemap,$data);
 
-    print 'runSitemapper(): pinging google'.NL;
+    //ping search engines...
+    $http = new DokuHTTPClient();
+    $http->timeout = 8;
+
     //ping google
+    print 'runSitemapper(): pinging google'.NL;
     $url  = 'http://www.google.com/webmasters/sitemaps/ping?sitemap=';
     $url .= urlencode(DOKU_URL.$sitemap);
-    $http = new DokuHTTPClient();
-    $http->get($url);
+    $resp = $http->get($url);
     if($http->error) print 'runSitemapper(): '.$http->error.NL;
+    print 'runSitemapper(): '.preg_replace('/[\n\r]/',' ',strip_tags($resp)).NL;
+
+    //ping yahoo
+    print 'runSitemapper(): pinging yahoo'.NL;
+    $url  = 'http://search.yahooapis.com/SiteExplorerService/V1/updateNotification?appid=dokuwiki&url=';
+    $url .= urlencode(DOKU_URL.$sitemap);
+    $resp = $http->get($url);
+    if($http->error) print 'runSitemapper(): '.$http->error.NL;
+    print 'runSitemapper(): '.preg_replace('/[\n\r]/',' ',strip_tags($resp)).NL;
+
+    //ping microsoft
+    print 'runSitemapper(): pinging microsoft'.NL;
+    $url  = 'http://search.live.com/ping?sitemap=';
+    $url .= urlencode(DOKU_URL.$sitemap);
+    $resp = $http->get($url);
+    if($http->error) print 'runSitemapper(): '.$http->error.NL;
+    print 'runSitemapper(): '.preg_replace('/[\n\r]/',' ',strip_tags($resp)).NL;
 
     print 'runSitemapper(): finished'.NL;
     return true;

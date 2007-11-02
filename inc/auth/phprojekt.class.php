@@ -21,13 +21,15 @@ class auth_phprojekt extends auth_mysql {
     global $conf;
     $this->cando['external'] = true;
     $this->cando['logoff']   = true;
-    
+    $this->cando['getGroups'] = true;
+    $this->cando['getGroupID'] = true;
+
     $db_host = PHPR_DB_HOST;
     $db_name = PHPR_DB_NAME;
     $db_prefix = PHPR_DB_PREFIX;
     $db_username = PHPR_DB_USER;
     $db_password = PHPR_DB_PASS;
-    
+
     // now set up the mysql config strings
     $conf['auth']['mysql']['server']   = $db_host;
     $conf['auth']['mysql']['user']     = $db_username;
@@ -39,15 +41,22 @@ class auth_phprojekt extends auth_mysql {
                                               WHERE u.gruppe = g.ID
                                                 AND u.loginname = '%{user}'
                                                 AND g.name   != 'Guest'";
-    $conf['auth']['mysql']['getUserInfo'] = "SELECT password AS pass, concat(vorname,' ',nachname) AS name, email AS mail,
+    $conf['auth']['mysql']['getUserInfo'] = "SELECT pw AS pass, concat(vorname,' ',nachname) AS name, email AS mail,
                                                     u.ID as id, g.name as `group`
                                                FROM ${db_prefix}users AS u, ${db_prefix}gruppen AS g
                                               WHERE u.gruppe = g.ID
                                                 AND u.loginname = '%{user}'";
+    $conf['auth']['mysql']['getGroups']   = "SELECT name as `group`
+                                               FROM ${db_prefix}grup_user as gu
+                                               JOIN (${db_prefix}users AS u, ${db_prefix}gruppen AS g)
+                                                 ON (g.ID=gu.grup_ID AND u.ID=gu.user_ID)
+                                              WHERE loginname = '%{user}';";
+    /*
     $conf['auth']['mysql']['getGroups']   = "SELECT g.name as `group`
                                                FROM ${db_prefix}users AS u, ${db_prefix}gruppen AS g
                                               WHERE u.gruppe = g.ID
                                                 AND u.loginname = '%{user}'";
+    */
     $conf['auth']['mysql']['getUsers']    = "SELECT DISTINCT u.loginname AS user
                                                FROM ${db_prefix}users AS u, ${db_prefix}gruppen AS g
                                               WHERE u.gruppe = g.ID";
@@ -72,10 +81,11 @@ class auth_phprojekt extends auth_mysql {
     $conf['auth']['mysql']['UpdateName']  = "realname='%{name}'";
     $conf['auth']['mysql']['UpdateTarget']= "WHERE id=%{uid}";
     $conf['auth']['mysql']['delUserGroup']= "UPDATE ${db_prefix}users SET g_id=4 WHERE id=%{uid}";
-    $conf['auth']['mysql']['getGroupID']  = "SELECT g_id AS id FROM ${db_prefix}groups WHERE g_title='%{group}'";
+    $conf['auth']['mysql']['getGroupID']  = "SELECT ID AS id FROM ${db_prefix}gruppen WHERE name='%{group}'";
 
     $conf['auth']['mysql']['TablesToLock']= array("${db_prefix}users", "${db_prefix}users AS u",
-                                                  "${db_prefix}groups", "${db_prefix}groups AS g");
+                                                  "${db_prefix}gruppen", "${db_prefix}gruppen AS g",
+                                                  "${db_prefix}grup_user", "${db_prefix}grup_user AS gu");
 
     $conf['auth']['mysql']['debug'] = 1;
     // call mysql constructor
@@ -90,26 +100,29 @@ class auth_phprojekt extends auth_mysql {
     global $conf;
     global $lang;
     $sticky ? $sticky = true : $sticky = false; //sanity check
-    
+
 //    print "trustExternal called!";
-// var_dump($_SESSION);    
+// var_dump($_SESSION);
 
     if(isset($_SESSION['logged_in']) && $_SESSION['logged_in'] === true){
       // okay we're logged in - set the globals
       $USERINFO['pass'] = $_SESSION['user_pw'];
       $USERINFO['name'] = utf8_encode( sprintf("%s %s", $_SESSION['user_firstname'], $_SESSION['user_name']) );
       $USERINFO['mail'] = $_SESSION['user_email'];
-      $USERINFO['grps'] = array($pun_user['g_title']);
+      foreach ($_SESSION['user_all_groups'] as $grouparray ) {
+          $USERINFO['grps'][] = $grouparray['name'];
+      }
+      //$USERINFO['grps'] = array($pun_user['g_title']);
 
-      $_SERVER['REMOTE_USER'] = $_SESSION['loginstring'];
-      $_SESSION[DOKU_COOKIE]['auth']['user'] = $_SESSION['loginstring'];
+      $_SERVER['REMOTE_USER'] = strtolower($_SESSION['loginstring']);
+      $_SESSION[DOKU_COOKIE]['auth']['user'] = strtolower($_SESSION['loginstring']);
       $_SESSION[DOKU_COOKIE]['auth']['info'] = $USERINFO;
       return true;
     }
 
     // to be sure
     auth_logoff();
-    return false;    
+    return false;
   }
 
   /**

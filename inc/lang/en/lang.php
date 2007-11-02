@@ -9,6 +9,11 @@
  */
 $lang['encoding']   = 'utf-8';
 $lang['direction']  = 'ltr';
+$lang['doublequoteopening']  = '“';//&ldquo;
+$lang['doublequoteclosing']  = '”';//&rdquo;
+$lang['singlequoteopening']  = '‘';//&lsquo;
+$lang['singlequoteclosing']  = '’';//&rsquo;
+$lang['apostrophe']          = '’';//&rsquo;
 
 $lang['btn_edit']   = 'Edit this page';
 $lang['btn_source'] = 'Show pagesource';
@@ -99,6 +104,9 @@ $lang['uploadsucc']  = 'Upload successful';
 $lang['uploadfail']  = 'Upload failed. Maybe wrong permissions?';
 $lang['uploadwrong'] = 'Upload denied. This file extension is forbidden!';
 $lang['uploadexist'] = 'File already exists. Nothing done.';
+$lang['uploadbadcontent'] = 'The uploaded content did not match the %s file extension.';
+$lang['uploadspam']  = 'The upload was blocked by the spam blacklist.';
+$lang['uploadxss']   = 'The upload was blocked for possibly malicious content.';
 $lang['deletesucc']  = 'The file "%s" has been deleted.';
 $lang['deletefail']  = '"%s" couldn\'t be deleted - check permissions.';
 $lang['mediainuse']  = 'The file "%s" hasn\'t been deleted - it is still in use.';
@@ -131,11 +139,13 @@ $lang['by']         = 'by';
 $lang['deleted']    = 'removed';
 $lang['created']    = 'created';
 $lang['restored']   = 'old revision restored';
+$lang['external_edit'] = 'external edit';
 $lang['summary']    = 'Edit summary';
 
-$lang['mail_newpage'] = 'page added:';
-$lang['mail_changed'] = 'page changed:';
-$lang['mail_new_user'] = 'New user:';
+$lang['mail_newpage']  = 'page added:';
+$lang['mail_changed']  = 'page changed:';
+$lang['mail_new_user'] = 'new user:';
+$lang['mail_upload']   = 'file uploaded:';
 
 $lang['nosmblinks'] = 'Linking to Windows shares only works in Microsoft Internet Explorer.\nYou still can copy and paste the link.';
 

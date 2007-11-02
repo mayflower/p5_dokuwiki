@@ -30,10 +30,19 @@ if(!defined('SIMPLE_TEST')){
 function css_out(){
     global $conf;
     global $lang;
-    $print = (bool) $_REQUEST['print'];   //print mode?
+    switch ($_REQUEST['s']) {
+        case 'all':
+        case 'print':
+        case 'feed':
+            $style = $_REQUEST['s'];
+        break;
+        default:
+            $style = '';
+        break;
+    }
 
     // The generated script depends on some dynamic options
-    $cache = getCacheName('styles'.$conf['template'].$print,'.css');
+    $cache = getCacheName('styles'.$conf['template'].$style,'.css');
 
     // load template styles
     $tplstyles = array();
@@ -47,16 +56,17 @@ function css_out(){
     // Array of needed files and their web locations, the latter ones
     // are needed to fix relative paths in the stylesheets
     $files   = array();
-    if (isset($tplstyles['all'])) $files = array_merge($files, $tplstyles['all']);
-    if($print){
+    //if (isset($tplstyles['all'])) $files = array_merge($files, $tplstyles['all']);
+    if(!empty($style)){
+        $files[DOKU_INC.'lib/styles/'.$style.'.css'] = DOKU_BASE.basename(DOKU_INC).'/'.'lib/styles/';
         // load plugin, template, user styles
-        $files = array_merge($files, css_pluginstyles('print'));
-        if (isset($tplstyles['print'])) $files = array_merge($files, $tplstyles['print']);
-        $files[DOKU_CONF.'userprint.css'] = '';
+        $files = array_merge($files, css_pluginstyles($style));
+        if (isset($tplstyles[$style])) $files = array_merge($files, $tplstyles[$style]);
+        $files[DOKU_CONF.'user'.$style.'.css'] = '';
     }else{
-        $files[DOKU_INC.'lib/styles/style.css'] = DOKU_BASE.'lib/styles/';
+        $files[DOKU_INC.'lib/styles/style.css'] = DOKU_BASE.basename(DOKU_INC).'/'.'lib/styles/';
         if($conf['spellchecker']){
-            $files[DOKU_INC.'lib/styles/spellcheck.css'] = DOKU_BASE.'lib/styles/';
+            $files[DOKU_INC.'lib/styles/spellcheck.css'] = DOKU_BASE.basename(DOKU_INC).'/'.'lib/styles/';
         }
         // load plugin, template, user styles
         $files = array_merge($files, css_pluginstyles('screen'));
@@ -116,6 +126,8 @@ function css_out(){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function css_cacheok($cache,$files){
+    if($_REQUEST['purge']) return false; //support purge request
+
     $ctime = @filemtime($cache);
     if(!$ctime) return false; //There is no cache
 
@@ -135,7 +147,7 @@ function css_cacheok($cache,$files){
 }
 
 /**
- * Does placeholder replacements in the style according to 
+ * Does placeholder replacements in the style according to
  * the ones defined in a templates style.ini file
  *
  * @author Andreas Gohr <andi@splitbrain.org>
@@ -163,7 +175,7 @@ function css_interwiki(){
 
     // default style
     echo 'a.interwiki {';
-    echo ' background: transparent url('.DOKU_BASE.basename(DOKU_INC)."/".'lib/images/interwiki.png) 0px 1px no-repeat;';
+    echo ' background: transparent url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/interwiki.png) 0px 1px no-repeat;';
     echo ' padding-left: 16px;';
     echo '}';
 
@@ -173,11 +185,11 @@ function css_interwiki(){
         $class = preg_replace('/[^_\-a-z0-9]+/i','_',$iw);
         if(@file_exists(DOKU_INC.'lib/images/interwiki/'.$iw.'.png')){
             echo "a.iw_$class {";
-            echo '  background-image: url('.DOKU_BASE.'lib/images/interwiki/'.$iw.'.png)';
+            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/interwiki/'.$iw.'.png)';
             echo '}';
         }elseif(@file_exists(DOKU_INC.'lib/images/interwiki/'.$iw.'.gif')){
             echo "a.iw_$class {";
-            echo '  background-image: url('.DOKU_BASE.'lib/images/interwiki/'.$iw.'.gif)';
+            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/interwiki/'.$iw.'.gif)';
             echo '}';
         }
     }
@@ -192,7 +204,7 @@ function css_filetypes(){
 
     // default style
     echo 'a.mediafile {';
-    echo ' background: transparent url('.DOKU_BASE.basename(DOKU_INC)."/".'lib/images/fileicons/file.png) 0px 1px no-repeat;';
+    echo ' background: transparent url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/fileicons/file.png) 0px 1px no-repeat;';
     echo ' padding-left: 18px;';
     echo ' padding-bottom: 1px;';
     echo '}';
@@ -201,13 +213,13 @@ function css_filetypes(){
     $mimes = getMimeTypes();
     foreach(array_keys($mimes) as $mime){
         $class = preg_replace('/[^_\-a-z0-9]+/i','_',$mime);
-        if(@file_exists(DOKU_INC.basename(DOKU_INC)."/".'lib/images/fileicons/'.$mime.'.png')){
+        if(@file_exists(DOKU_INC.'lib/images/fileicons/'.$mime.'.png')){
             echo "a.mf_$class {";
-            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC)."/".'lib/images/fileicons/'.$mime.'.png)';
+            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/fileicons/'.$mime.'.png)';
             echo '}';
-        }elseif(@file_exists(DOKU_INC.basename(DOKU_INC)."/".'lib/images/fileicons/'.$mime.'.gif')){
+        }elseif(@file_exists(DOKU_INC.'lib/images/fileicons/'.$mime.'.gif')){
             echo "a.mf_$class {";
-            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC)."/".'lib/images/fileicons/'.$mime.'.gif)';
+            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/fileicons/'.$mime.'.gif)';
             echo '}';
         }
     }
@@ -233,16 +245,22 @@ function css_loadfile($file,$location=''){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function css_pluginstyles($mode='screen'){
+    global $lang;
     $list = array();
     $plugins = plugin_list();
     foreach ($plugins as $p){
-        if($mode == 'print'){
-            $list[DOKU_PLUGIN."$p/print.css"]  = DOKU_BASE.basename(DOKU_INC)."/"."lib/plugins/$p/";
-            $list[DOKU_PLUGIN."$p/all.css"]  = DOKU_BASE.basename(DOKU_INC)."/"."lib/plugins/$p/";
+        if($mode == 'all'){
+            $list[DOKU_PLUGIN."$p/all.css"]  = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
+        }elseif($mode == 'print'){
+            $list[DOKU_PLUGIN."$p/print.css"]  = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
+        }elseif($mode == 'feed'){
+            $list[DOKU_PLUGIN."$p/feed.css"]  = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
         }else{
-            $list[DOKU_PLUGIN."$p/style.css"]  = DOKU_BASE.basename(DOKU_INC)."/"."lib/plugins/$p/";
-            $list[DOKU_PLUGIN."$p/screen.css"] = DOKU_BASE.basename(DOKU_INC)."/"."lib/plugins/$p/";
-            $list[DOKU_PLUGIN."$p/all.css"]  = DOKU_BASE.basename(DOKU_INC)."/"."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/style.css"]  = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/screen.css"] = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
+        }
+        if($lang['direction'] == 'rtl'){
+            $list[DOKU_PLUGIN."$p/rtl.css"] = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
         }
     }
     return $list;

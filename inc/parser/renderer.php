@@ -8,30 +8,50 @@
 if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../').'/');
 
 require_once DOKU_INC . 'inc/parser/renderer.php';
+require_once DOKU_INC . 'inc/plugin.php';
 require_once DOKU_INC . 'inc/pluginutils.php';
 
-class Doku_Renderer {
+/**
+ * An empty renderer, produces no output
+ *
+ * Inherits from DokuWiki_Plugin for giving additional functions to render plugins
+ */
+class Doku_Renderer extends DokuWiki_Plugin {
     var $info = array(
-        'cache' => TRUE, // may the rendered result cached?
-        'toc'   => TRUE, // render the TOC?
+        'cache' => true, // may the rendered result cached?
+        'toc'   => true, // render the TOC?
     );
 
+    // keep some config options
+    var $acronyms = array();
+    var $smileys = array();
+    var $badwords = array();
+    var $entities = array();
+    var $interwiki = array();
 
     function nocache() {
-        $this->info['cache'] = FALSE;
+        $this->info['cache'] = false;
     }
 
     function notoc() {
-        $this->info['toc'] = FALSE;
+        $this->info['toc'] = false;
     }
+
+    /**
+     * Returns the format produced by this renderer.
+     *
+     * Has to be overidden by decendend classes
+     */
+    function getFormat(){
+        trigger_error('getFormat() not implemented in '.get_class($this), E_USER_WARNING);
+    }
+
 
     //handle plugin rendering
     function plugin($name,$data){
         $plugin =& plugin_load('syntax',$name);
         if($plugin != null){
-            // determine mode from renderer class name - format = "Doku_Renderer_<mode>"
-            $mode = substr(get_class($this), 14);
-            $plugin->render($mode,$this,$data);
+            $plugin->render($this->getFormat(),$this,$data);
         }
     }
 
@@ -57,6 +77,8 @@ class Doku_Renderer {
     function document_end() {}
 
     function render_TOC() { return ''; }
+
+    function toc_additem($id, $text, $level) {}
 
     function header($text, $level, $pos) {}
 
@@ -155,12 +177,16 @@ class Doku_Renderer {
 
     function singlequoteclosing() {}
 
+    function apostrophe() {}
+
     function doublequoteopening() {}
 
     function doublequoteclosing() {}
 
     // $link like 'SomePage'
     function camelcaselink($link) {}
+
+    function locallink($hash, $name = NULL) {}
 
     // $link like 'wiki:syntax', $title could be an array (media)
     function internallink($link, $title = NULL) {}
@@ -181,6 +207,12 @@ class Doku_Renderer {
 
 //  function email($address, $title = NULL) {}
     function emaillink($address, $name = NULL) {}
+
+    function internalmedia ($src, $title=NULL, $align=NULL, $width=NULL,
+                            $height=NULL, $cache=NULL, $linking=NULL) {}
+
+    function externalmedia ($src, $title=NULL, $align=NULL, $width=NULL,
+                            $height=NULL, $cache=NULL, $linking=NULL) {}
 
     function internalmedialink (
         $src,$title=NULL,$align=NULL,$width=NULL,$height=NULL,$cache=NULL
@@ -206,6 +238,75 @@ class Doku_Renderer {
 
     function tablecell_close(){}
 
+
+    // util functions follow, you probably won't need to reimplement them
+
+
+    /**
+     * Removes any Namespace from the given name but keeps
+     * casing and special chars
+     *
+     * @author Andreas Gohr <andi@splitbrain.org>
+     */
+    function _simpleTitle($name){
+        global $conf;
+
+        //if there is a hash we use the ancor name only
+        list($name,$hash) = explode('#',$name,2);
+        if($hash) return $hash;
+
+        //trim colons or slash of a namespace link
+        $name = rtrim($name,':');
+        if($conf['useslash'])
+          $name = rtrim($name,'/');
+
+        if($conf['useslash']){
+            $nssep = '[:;/]';
+        }else{
+            $nssep = '[:;]';
+        }
+        $name = preg_replace('!.*'.$nssep.'!','',$name);
+
+        if(!$name) return $this->_simpleTitle($conf['start']);
+        return $name;
+    }
+
+    /**
+     * Resolve an interwikilink
+     */
+    function _resolveInterWiki(&$shortcut,$reference){
+        //get interwiki URL
+        if ( isset($this->interwiki[$shortcut]) ) {
+            $url = $this->interwiki[$shortcut];
+        } else {
+            // Default to Google I'm feeling lucky
+            $url = 'http://www.google.com/search?q={URL}&amp;btnI=lucky';
+            $shortcut = 'go';
+        }
+
+        //split into hash and url part
+        list($wikiUri,$hash) = explode('#',$wikiUri,2);
+
+        //replace placeholder
+        if(preg_match('#\{(URL|NAME|SCHEME|HOST|PORT|PATH|QUERY)\}#',$url)){
+            //use placeholders
+            $url = str_replace('{URL}',rawurlencode($reference),$url);
+            $url = str_replace('{NAME}',$reference,$url);
+            $parsed = parse_url($reference);
+            if(!$parsed['port']) $parsed['port'] = 80;
+            $url = str_replace('{SCHEME}',$parsed['scheme'],$url);
+            $url = str_replace('{HOST}',$parsed['host'],$url);
+            $url = str_replace('{PORT}',$parsed['port'],$url);
+            $url = str_replace('{PATH}',$parsed['path'],$url);
+            $url = str_replace('{QUERY}',$parsed['query'],$url);
+        }else{
+            //default
+            $url = $url.rawurlencode($reference);
+        }
+        if($hash) $url .= '#'.rawurlencode($hash);
+
+        return $url;
+    }
 }
 
 

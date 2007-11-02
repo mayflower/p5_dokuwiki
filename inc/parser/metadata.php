@@ -26,20 +26,19 @@ class Doku_Renderer_metadata extends Doku_Renderer {
 
   var $doc  = '';
   var $meta = array();
+  var $persistent = array();
 
   var $headers = array();
   var $capture = true;
   var $store   = '';
 
+  function getFormat(){
+    return 'metadata';
+  }
+
   function document_start(){
-    //reset some variables
-    $this->meta['title'] = '';
-    $this->meta['description']['abstract'] = '';
-    $this->meta['description']['tableofcontents'] = array();
-    $this->meta['relation']['haspart'] = array();
-    $this->meta['relation']['references'] = array();
-		$this->meta['date']['valid'] = array();
-    $this->headers = array();
+    // reset metadata to persistent values
+    $this->meta = $this->persistent;
   }
 
   function document_end(){
@@ -52,24 +51,29 @@ class Doku_Renderer_metadata extends Doku_Renderer {
     }
   }
 
-  function header($text, $level, $pos) {
+  function toc_additem($id, $text, $level) {
     global $conf;
 
-    if (!$this->meta['title']) $this->meta['title'] = $text;
-
-    // create a unique header id
-    $hid = $this->_headerToLink($text,'true');
-
-    //handle TOC
+    //only add items within configured levels
     if($level >= $conf['toptoclevel'] && $level <= $conf['maxtoclevel']){
       // the TOC is one of our standard ul list arrays ;-)
       $this->meta['description']['tableofcontents'][] = array(
-        'hid'   => $hid,
+        'hid'   => $id,
         'title' => $text,
         'type'  => 'ul',
         'level' => $level-$conf['toptoclevel']+1
       );
     }
+
+  }
+
+  function header($text, $level, $pos) {
+
+    if (!$this->meta['title']) $this->meta['title'] = $text;
+
+    // add the header to the TOC
+    $hid = $this->_headerToLink($text,'true');
+    $this->toc_additem($hid, $text, $level);
 
     // add to summary
     if ($this->capture && ($level > 1)) $this->doc .= DOKU_LF.$text.DOKU_LF;
@@ -206,12 +210,12 @@ class Doku_Renderer_metadata extends Doku_Renderer {
   }
 
   function quote_open(){
-    if ($this->capture) $this->doc .= DOKU_LF.DOKU_TAB.'“';
+    if ($this->capture) $this->doc .= DOKU_LF.DOKU_TAB.'"';
   }
 
   function quote_close(){
     if ($this->capture){
-      $this->doc .= '”';
+      $this->doc .= '"';
       if (strlen($this->doc) > 250) $this->capture = false;
       else $this->doc .= DOKU_LF;
     }
@@ -242,19 +246,28 @@ class Doku_Renderer_metadata extends Doku_Renderer {
   }
 
   function singlequoteopening(){
-    if ($this->capture) $this->doc .= '‘';
+    global $lang;
+    if ($this->capture) $this->doc .= $lang['singlequoteopening'];
   }
 
   function singlequoteclosing(){
-    if ($this->capture) $this->doc .= '’';
+    global $lang;
+    if ($this->capture) $this->doc .= $lang['singlequoteclosing'];
+  }
+
+  function apostrophe() {
+    global $lang;
+    $this->doc .= $lang['apostrophe'];
   }
 
   function doublequoteopening(){
-    if ($this->capture) $this->doc .= '“';
+    global $lang;
+    if ($this->capture) $this->doc .= $lang['doublequoteopening'];
   }
 
   function doublequoteclosing(){
-    if ($this->capture) $this->doc .= '”';
+    global $lang;
+    if ($this->capture) $this->doc .= $lang['doublequoteclosing'];
   }
 
   function camelcaselink($link) {
@@ -328,7 +341,11 @@ class Doku_Renderer_metadata extends Doku_Renderer {
 
   function rss($url,$params) {
     $this->meta['relation']['haspart'][$url] = true;
-   	$this->meta['date']['valid']['age'] = $params['refresh'];
+
+    $this->meta['date']['valid']['age'] =
+            isset($this->meta['date']['valid']['age']) ?
+                min($this->meta['date']['valid']['age'],$params['refresh']) :
+                $params['refresh'];
   }
 
   function table_open($maxcols = NULL, $numrows = NULL){}
@@ -354,6 +371,8 @@ class Doku_Renderer_metadata extends Doku_Renderer {
    */
   function _simpleTitle($name){
     global $conf;
+
+    if(is_array($name)) return '';
 
     if($conf['useslash']){
         $nssep = '[:;/]';
@@ -399,10 +418,10 @@ class Doku_Renderer_metadata extends Doku_Renderer {
   function _getLinkTitle($title, $default, $id=NULL) {
     global $conf;
 
-    $isImage = FALSE;
+    $isImage = false;
     if (is_null($title)){
       if ($conf['useheading'] && $id){
-        $heading = p_get_first_heading($id);
+        $heading = p_get_first_heading($id,false);
         if ($heading) return $heading;
       }
       return $default;

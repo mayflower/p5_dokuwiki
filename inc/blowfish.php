@@ -1,6 +1,6 @@
 <?php
 
-/* $Id: blowfish.php,v 1.1.1.1 2007/03/07 13:00:39 bjoern Exp $ */
+/* $Id: blowfish.php,v 1.2 2007/11/02 15:04:08 michele Exp $ */
 // vim: expandtab sw=4 ts=4 sts=4:
 
 /**
@@ -15,7 +15,7 @@
  * did not receive this file, see http://www.fsf.org/copyleft/lgpl.html.
  *
  * @author  Mike Cochrane <mike@graftonhall.co.nz>
- * @version $Revision: 1.1.1.1 $
+ * @version $Revision: 1.2 $
  * @since   Horde 2.2
  * @package horde.cipher
  */

@@ -6,9 +6,9 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-  if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../').'/');
-
-  require_once(DOKU_INC.'inc/parserutils.php');
+if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../').'/');
+if(!defined('NL')) define('NL',"\n");
+require_once(DOKU_INC.'inc/parserutils.php');
 
 /**
  * Convenience function to quickly build a wikilink
@@ -41,7 +41,8 @@ function html_attbuild($attributes){
 /**
  * The loginform
  *
- * @author Andreas Gohr <andi@splitbrain.org>
+ * @author   Andreas Gohr <andi@splitbrain.org>
+ * @triggers HTML_LOGINFORM_INJECTION
  */
 function html_login(){
   global $lang;
@@ -67,6 +68,12 @@ function html_login(){
           <span><?php echo $lang['pass']?></span>
           <input type="password" name="p" class="edit" />
         </label><br />
+
+        <?php //bad and dirty event insert hook
+        $evdata = array();
+        trigger_event('HTML_LOGINFORM_INJECTION', $evdata);
+        ?>
+
         <label for="remember__me" class="simple">
           <input type="checkbox" name="r" id="remember__me" value="1" />
           <span><?php echo $lang['remember']?></span>
@@ -156,36 +163,6 @@ function html_topbtn(){
 }
 
 /**
- * Just the back to media window button in its own form
- *
- * @author Matthias Grimm <matthiasgrimm@users.sourceforge.net>
- */
-function html_backtomedia_button($params,$akey=''){
-  global $conf;
-  global $lang;
-
-  $ret = '<form class="button" method="get" action="'.DOKU_BASE.basename(DOKU_INC)."/".'lib/exe/mediamanager.php"><div class="no">';
-
-  reset($params);
-  while (list($key, $val) = each($params)) {
-    $ret .= '<input type="hidden" name="'.$key.'" ';
-    $ret .= 'value="'.htmlspecialchars($val).'" />';
-  }
-
-  $ret .= '<input type="submit" value="'.htmlspecialchars($lang['btn_backtomedia']).'" class="button" ';
-  $tit = htmlspecialchars($lang['btn_backtomedia']);
-  if($akey){
-    $tit .= ' [ALT+'.strtoupper($akey).']';
-    $ret .= 'accesskey="'.$akey.'" ';
-  }
-  $ret .= 'title="'.$tit.'" ';
-  $ret .= '/>';
-  $ret .= '</div></form>';
-
-  return $ret;
-}
-
-/**
  * Displays a button (using its own form)
  * If tooltip exists, the access key tooltip is replaced.
  *
@@ -212,7 +189,7 @@ function html_btn($name,$id,$akey,$params,$method='get',$tooltip=''){
     $script = DOKU_BASE.DOKU_SCRIPT;
     $params['id'] = $id;
   }
-  
+
   $ret .= '<form class="button" method="'.$method.'" action="'.$script.'"><div class="no">';
 
   if(is_array($params)){
@@ -364,11 +341,11 @@ function html_search(){
   }
 
   //show progressbar
-  print '<div class="centeralign" id="dw__loading">';
-  print '<script type="text/javascript" charset="utf-8">';
-  print 'showLoadBar();';
-  print '</script>';
-  print "<br /></div>\n";
+  print '<div class="centeralign" id="dw__loading">'.NL;
+  print '<script type="text/javascript" charset="utf-8"><!--//--><![CDATA[//><!--'.NL;
+  print 'showLoadBar();'.NL;
+  print '//--><!]]></script>'.NL;
+  print '<br /></div>'.NL;
   flush();
 
   //do quick pagesearch
@@ -412,9 +389,9 @@ function html_search(){
   }
 
   //hide progressbar
-  print '<script type="text/javascript" charset="utf-8">';
-  print 'hideLoadBar("dw__loading");';
-  print '</script>';
+  print '<script type="text/javascript" charset="utf-8"><!--//--><![CDATA[//><!--'.NL;
+  print 'hideLoadBar("dw__loading");'.NL;
+  print '//--><!]]></script>'.NL;
   flush();
 }
 
@@ -471,7 +448,7 @@ function html_revisions($first=0){
   print p_locale_xhtml('revisions');
   print '<ul>';
   if($INFO['exists'] && $first==0){
-    print (isset($INFO['meta']) && isset($INFO['meta']['last_change']) && $INFO['meta']['last_change']['type']==='e') ? '<li class="minor">' : '<li>';
+    print (isset($INFO['meta']) && isset($INFO['meta']['last_change']) && $INFO['meta']['last_change']['type']===DOKU_CHANGE_TYPE_MINOR_EDIT) ? '<li class="minor">' : '<li>';
     print '<div class="li">';
 
     print $date;
@@ -483,7 +460,7 @@ function html_revisions($first=0){
     print ' &ndash; ';
     print $INFO['sum'];
     print ' <span class="user">';
-    print $INFO['editor'];
+    print (empty($INFO['editor']))?('('.$lang['external_edit'].')'):$INFO['editor'];
     print '</span> ';
 
     print '('.$lang['current'].')';
@@ -495,7 +472,7 @@ function html_revisions($first=0){
     $date = date($conf['dformat'],$rev);
     $info = getRevisionInfo($ID,$rev,true);
 
-    print ($info['type']==='e') ? '<li class="minor">' : '<li>';
+    print ($info['type']===DOKU_CHANGE_TYPE_MINOR_EDIT) ? '<li class="minor">' : '<li>';
     print '<div class="li">';
     print $date;
 
@@ -581,7 +558,7 @@ function html_recent($first=0){
 
   foreach($recents as $recent){
     $date = date($conf['dformat'],$recent['date']);
-    print ($recent['type']==='e') ? '<li class="minor">' : '<li>';
+    print ($recent['type']===DOKU_CHANGE_TYPE_MINOR_EDIT) ? '<li class="minor">' : '<li>';
     print '<div class="li">';
 
     print $date.' ';
@@ -679,9 +656,9 @@ function html_list_index($item){
   $base = ':'.$item['id'];
   $base = substr($base,strrpos($base,':')+1);
   if($item['type']=='d'){
-    $ret .= '<a href="'.wl($ID,'idx='.$item['id']).'" class="idx_dir">';
+    $ret .= '<a href="'.wl($ID,'idx='.$item['id']).'" class="idx_dir"><strong>';
     $ret .= $base;
-    $ret .= '</a>';
+    $ret .= '</strong></a>';
   }else{
     $ret .= html_wikilink(':'.$item['id']);
   }
@@ -760,17 +737,10 @@ function html_buildlist($data,$class,$func,$lifunc='html_li_default'){
     $level = $item['level'];
 
     //print item
-    if(is_array($lifunc)){
-      $ret .= $lifunc[0]->$lifunc[1]($item); //user object method
-    }else{
-      $ret .= $lifunc($item); //user function
-    }
+    $ret .= call_user_func($lifunc,$item);
     $ret .= '<div class="li">';
-    if(is_array($func)){
-      $ret .= $func[0]->$func[1]($item); //user object method
-    }else{
-    $ret .= $func($item); //user function
-    }
+
+    $ret .= call_user_func($func,$item);
     $ret .= '</div>';
   }
 
@@ -825,11 +795,18 @@ function html_diff($text='',$intro=true){
               $lang['current'];
     $right = $lang['yours'];
   }else{
+    //check if current revision exist
+    if(!@file_exists(wikiFN($ID))){
+      $revs = getRevisions($ID, 0, 2);
+      $rc = $revs[1];
+    }
     if($REV){
       $r = $REV;
     }else{
-      //use last revision if none given
-      $revs = getRevisions($ID, 0, 1);
+      if(empty($revs)){
+        //use last revision if none given
+        $revs = getRevisions($ID, 0, 1);
+      }
       $r = $revs[0];
     }
 
@@ -837,7 +814,7 @@ function html_diff($text='',$intro=true){
       $df  = new Diff(explode("\n",htmlspecialchars(rawWiki($ID,$r))),
                       explode("\n",htmlspecialchars(rawWiki($ID,''))));
       $left  = '<a class="wikilink1" href="'.wl($ID,"rev=$r").'">'.
-                $ID.' '.date($conf['dformat'],$r).'</a>';
+                $ID.' '.date($conf['dformat'],(isset($rc) ? $rc : $r)).'</a>';
     }else{
       $df  = new Diff(array(''),
                       explode("\n",htmlspecialchars(rawWiki($ID,''))));
@@ -845,7 +822,7 @@ function html_diff($text='',$intro=true){
                 $ID.'</a>';
     }
     $right = '<a class="wikilink1" href="'.wl($ID).'">'.
-              $ID.' '.date($conf['dformat'],@filemtime(wikiFN($ID))).'</a> '.
+              $ID.' '.date($conf['dformat'],(isset($rc) ? $r : @filemtime(wikiFN($ID)))).'</a> '.
               $lang['current'];
   }
   $tdf = new TableDiffFormatter();
@@ -911,6 +888,7 @@ function html_msgarea(){
  * Prints the registration form
  *
  * @author Andreas Gohr <andi@splitbrain.org>
+ * @triggers HTML_REGISTERFORM_INJECTION
  */
 function html_register(){
   global $lang;
@@ -954,6 +932,10 @@ function html_register(){
       <?php echo $lang['email']?>
       <input type="text" name="email" class="edit" size="50" value="<?php echo formText($_POST['email'])?>" />
     </label><br />
+    <?php //bad and dirty event insert hook
+    $evdata = array();
+    trigger_event('HTML_REGISTERFORM_INJECTION', $evdata);
+    ?>
     <input type="submit" class="button" value="<?php echo $lang['register']?>" />
   </fieldset>
   </form>
@@ -1017,7 +999,10 @@ function html_updateprofile(){
       <input type="password" name="oldpass" class="edit" size="50" />
     </label><br />
     <?php } ?>
-
+    <?php //bad and dirty event insert hook
+    $evdata = array();
+    trigger_event('HTML_PROFILEFORM_INJECTION', $evdata);
+    ?>
     <input type="submit" class="button" value="<?php echo $lang['btn_save']?>" />
     <input type="reset" class="button" value="<?php echo $lang['btn_reset']?>" />
   </fieldset>
@@ -1031,6 +1016,7 @@ function html_updateprofile(){
  *
  * @fixme    this is a huge lump of code and should be modularized
  * @triggers HTML_PAGE_FROMTEMPLATE
+ * @triggers HTML_EDITFORM_INJECTION
  * @author   Andreas Gohr <andi@splitbrain.org>
  */
 function html_edit($text=null,$include='edit'){ //FIXME: include needed?
@@ -1094,14 +1080,14 @@ function html_edit($text=null,$include='edit'){ //FIXME: include needed?
 
    <div class="toolbar">
       <div id="draft__status"><?php if(!empty($INFO['draft'])) echo $lang['draftdate'].' '.date($conf['dformat']);?></div>
-      <div id="tool__bar"><?php if(!$ro){?><a href="<?php echo DOKU_BASE . basename(DOKU_INC) . "/"; ?>lib/exe/mediamanager.php?ns=<?php echo $INFO['namespace']?>"
+      <div id="tool__bar"><?php if(!$ro){?><a href="<?php echo DOKU_BASE.basename(DOKU_INC)."/";?>lib/exe/mediamanager.php?ns=<?php echo $INFO['namespace']?>"
       target="_blank"><?php echo $lang['mediaselect'] ?></a><?php }?></div>
 
       <?php if($wr){?>
-      <script type="text/javascript" charset="utf-8">
+      <script type="text/javascript" charset="utf-8"><!--//--><![CDATA[//><!--
         <?php /* sets changed to true when previewed */?>
         textChanged = <?php ($pr) ? print 'true' : print 'false' ?>;
-      </script>
+      //--><!]]></script>
       <span id="spell__action"></span>
       <div id="spell__suggest"></div>
       <?php } ?>
@@ -1118,6 +1104,11 @@ function html_edit($text=null,$include='edit'){ //FIXME: include needed?
     </div>
 
     <textarea name="wikitext" id="wiki__text" <?php echo $ro?> cols="80" rows="10" class="edit" tabindex="1"><?php echo "\n".formText($text)?></textarea>
+
+    <?php //bad and dirty event insert hook
+    $evdata = array('writable' => $wr);
+    trigger_event('HTML_EDITFORM_INJECTION', $evdata);
+    ?>
 
     <div id="wiki__editbar">
       <div id="size__ctl"></div>
@@ -1258,6 +1249,7 @@ function html_debug(){
 
 function html_admin(){
   global $ID;
+  global $INFO;
   global $lang;
   global $conf;
 
@@ -1268,6 +1260,10 @@ function html_admin(){
   $menu = array();
   foreach ($pluginlist as $p) {
     if($obj =& plugin_load('admin',$p) === NULL) continue;
+
+    // check permissions
+    if($obj->forAdminOnly() && !$INFO['isadmin']) continue;
+
     $menu[] = array('plugin' => $p,
                     'prompt' => $obj->getMenuText($conf['lang']),
                     'sort' => $obj->getMenuSort()

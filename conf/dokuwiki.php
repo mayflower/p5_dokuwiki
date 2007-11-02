@@ -19,7 +19,7 @@ $conf['lang']        = 'en';              //your language
 $conf['basedir']     = '';                //absolute dir from serveroot - blank for autodetection
 $conf['baseurl']     = '';                //URL to server including protocol - blank for autodetect
 $conf['savedir']     = './data';          //where to store all the files
-$conf['allowdebug']  = 1;                 //allow debug output, enable if needed 0|1
+$conf['allowdebug']  = 0;                 //allow debug output, enable if needed 0|1
 
 /* Display Options */
 
@@ -30,15 +30,15 @@ $conf['fullpath']    = 0;                 //show full path of the document or re
 $conf['recent']      = 20;                //how many entries to show in recent
 $conf['breadcrumbs'] = 10;                //how many recent visited pages to show
 $conf['youarehere']  = 0;                 //show "You are here" navigation? 0|1
-$conf['typography']  = 1;                 //convert quotes, dashes and stuff to typographic equivalents? 0|1
-$conf['htmlok']      = 1;                 //may raw HTML be embedded? This may break layout and XHTML validity 0|1
+$conf['typography']  = 1;                 //smartquote conversion 0=off, 1=doublequotes, 2=all quotes
+$conf['htmlok']      = 0;                 //may raw HTML be embedded? This may break layout and XHTML validity 0|1
 $conf['phpok']       = 0;                 //may PHP code be embedded? Never do this on the internet! 0|1
 $conf['dformat']     = 'Y/m/d H:i';       //dateformat accepted by PHPs date() function
 $conf['signature']   = ' --- //[[@MAIL@|@NAME@]] @DATE@//'; //signature see wiki:config for details
 $conf['toptoclevel'] = 1;                 //Level starting with and below to include in AutoTOC (max. 5)
 $conf['maxtoclevel'] = 3;                 //Up to which level include into AutoTOC (max. 5)
 $conf['maxseclevel'] = 3;                 //Up to which level create editable sections (max. 5)
-$conf['camelcase']   = 1;                 //Use CamelCase for linking? (I don't like it) 0|1
+$conf['camelcase']   = 0;                 //Use CamelCase for linking? (I don't like it) 0|1
 $conf['deaccent']    = 1;                 //deaccented chars in pagenames (1) or romanize (2) or keep (0)?
 $conf['useheading']  = 0;                 //use the first heading in a page as its name
 $conf['refcheck']    = 1;                 //check for references before deleting media files
@@ -54,18 +54,21 @@ $conf['mailguard']   = 'hex';             //obfuscate email addresses against sp
                                           //  'visible' - replace @ with [at], . with [dot] and - with [dash]
                                           //  'hex'     - use hex entities to encode the mail address
                                           //  'none'    - do not obfuscate addresses
+$conf['iexssprotect']= 1;                 // check for JavaScript and HTML in uploaded files 0|1
 
 /* Authentication Options - read http://www.splitbrain.org/dokuwiki/wiki:acl */
 
-$conf['useacl']      = 1;                //Use Access Control Lists to restrict access?
-$conf['autopasswd']  = 0;                //autogenerate passwords and email them to user
-$conf['authtype']    = 'phprojekt';          //which authentication backend should be used
-$conf['passcrypt']   = 'crypt';           //Used crypt method (smd5,md5,sha1,ssha,crypt,mysql,my411)
-$conf['defaultgroup']= 'default';           //Default groups new Users are added to
+$conf['useacl']      = 0;                //Use Access Control Lists to restrict access?
+$conf['autopasswd']  = 1;                //autogenerate passwords and email them to user
+$conf['authtype']    = 'plain';          //which authentication backend should be used
+$conf['passcrypt']   = 'smd5';           //Used crypt method (smd5,md5,sha1,ssha,crypt,mysql,my411)
+$conf['defaultgroup']= 'user';           //Default groups new Users are added to
 $conf['superuser']   = '!!not set!!';    //The admin can be user or @group
+$conf['manager']     = '!!not set!!';    //The manager can be user or @group
 $conf['profileconfirm'] = '1';           //Require current password to confirm changes to user profile
 $conf['disableactions'] = '';            //comma separated list of actions to disable
-$conf['openregister'] = '';
+$conf['sneaky_index']   = 0;             //check for namespace read permission in index view (0|1) (1 might cause unexpected behavior)
+$conf['auth_security_timeout'] = 900;    //time (seconds) auth data is considered valid, set to 0 to recheck on every page view
 
 /* Advanced Options */
 
@@ -107,6 +110,8 @@ $conf['rss_linkto'] = 'diff';            //what page RSS entries link to:
                                          //  'current' - most recent revision of page
 $conf['rss_update'] = 5*60;              //Update the RSS feed every n minutes (defaults to 5 minutes)
 $conf['recent_days'] = 7;                //How many days of recent changes to keep. (days)
+$conf['rss_show_summary'] = 1;           //Add revision summary to title? 0|1
+$conf['broken_iua']  = 0;                //Platform with broken ignore_user_abort (IIS+CGI) 0|1
 
 //Set target to use when creating links - leave empty for same window
 $conf['target']['wiki']      = '';
@@ -130,6 +135,3 @@ $conf['ftp']['port'] = '21';
 $conf['ftp']['user'] = 'user';
 $conf['ftp']['pass'] = 'password';
 $conf['ftp']['root'] = '/home/user/htdocs';
-// Change the DOKU_BASE here if you don't install the phprojekt in the webserver root!!
-define('DOKU_BASE', '/addons/');
-define('DOKU_SCRIPT', 'addon.php?addon=dokuwiki');

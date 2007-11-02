@@ -40,8 +40,7 @@ function hsc($string){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function ptln($string,$intend=0){
-  for($i=0; $i<$intend; $i++) print ' ';
-  echo "$string\n";
+  echo str_repeat(' ', $intend)."$string\n";
 }
 
 /**
@@ -75,6 +74,16 @@ function pageinfo(){
     $info['perm']       = auth_quickaclcheck($ID);
     $info['subscribed'] = is_subscribed($ID,$_SERVER['REMOTE_USER']);
     $info['client']     = $_SERVER['REMOTE_USER'];
+
+    // set info about manager/admin status
+    $info['isadmin']   = false;
+    $info['ismanager'] = false;
+    if($info['perm'] == AUTH_ADMIN){
+      $info['isadmin']   = true;
+      $info['ismanager'] = true;
+    }elseif(auth_ismanager()){
+      $info['ismanager'] = true;
+    }
 
     // if some outside auth were used only REMOTE_USER is set
     if(!$info['userinfo']['name']){
@@ -118,14 +127,30 @@ function pageinfo(){
   if($REV){
     $revinfo = getRevisionInfo($ID, $REV, 1024);
   }else{
-    $revinfo = isset($info['meta']['last_change']) ? $info['meta']['last_change'] : getRevisionInfo($ID,$info['lastmod'],1024);
+    if (is_array($info['meta']['last_change'])) {
+       $revinfo = $info['meta']['last_change'];
+    } else {
+      $revinfo = getRevisionInfo($ID, $info['lastmod'], 1024);
+      // cache most recent changelog line in metadata if missing and still valid
+      if ($revinfo!==false) {
+        $info['meta']['last_change'] = $revinfo;
+        p_set_metadata($ID, array('last_change' => $revinfo));
+      }
+    }
+  }
+  //and check for an external edit
+  if($revinfo!==false && $revinfo['date']!=$info['lastmod']){
+    // cached changelog line no longer valid
+    $revinfo = false;
+    $info['meta']['last_change'] = $revinfo;
+    p_set_metadata($ID, array('last_change' => $revinfo));
   }
 
   $info['ip']     = $revinfo['ip'];
   $info['user']   = $revinfo['user'];
   $info['sum']    = $revinfo['sum'];
   // See also $INFO['meta']['last_change'] which is the most recent log line for page $ID.
-  // Use $INFO['meta']['last_change']['type']==='e' in place of $info['minor'].
+  // Use $INFO['meta']['last_change']['type']===DOKU_CHANGE_TYPE_MINOR_EDIT in place of $info['minor'].
 
   if($revinfo['user']){
     $info['editor'] = $revinfo['user'];
@@ -212,7 +237,7 @@ function breadcrumbs(){
   }
 
   // page names
-  $name = noNS($ID);
+  $name = noNSorNS($ID);
   if ($conf['useheading']) {
     // get page title
     $title = p_get_first_heading($ID);
@@ -343,7 +368,7 @@ function exportlink($id='',$format='raw',$more='',$abs=false,$sep='&amp;'){
  *
  * Will return a link to the detail page if $direct is false
  */
-function ml($id='',$more='',$direct=true,$sep='&amp;'){
+function ml($id='',$more='',$direct=true,$sep='&amp;',$abs=false){
   global $conf;
   if(is_array($more)){
     $more = buildURLparams($more,$sep);
@@ -351,7 +376,11 @@ function ml($id='',$more='',$direct=true,$sep='&amp;'){
     $more = str_replace(',',$sep,$more);
   }
 
-  $xlink = DOKU_BASE . basename(DOKU_INC) . '/';
+  if($abs){
+    $xlink = DOKU_URL;
+  }else{
+    $xlink = DOKU_BASE.basename(DOKU_INC).'/';
+  }
 
   // external URLs are always direct without rewriting
   if(preg_match('#^(https?|ftp)://#i',$id)){
@@ -451,7 +480,7 @@ function checkwordblock(){
       if(empty($block)) continue;
       $re[]  = $block;
     }
-    if(preg_match('#('.join('|',$re).')#si',$text, $match=array())) {
+    if(preg_match('#('.join('|',$re).')#si',$text)) {
       return true;
     }
   }
@@ -589,7 +618,7 @@ function cleanText($text){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function formText($text){
-  $text = preg_replace("/\012/","\015\012",$text);
+  $text = str_replace("\012","\015\012",$text);
   return htmlspecialchars($text);
 }
 
@@ -711,10 +740,7 @@ function saveWikiText($id,$text,$summary,$minor=false){
     saveOldRevision($id);
     // add a changelog entry if this edit came from outside dokuwiki
     if ($old>$oldRev) {
-      addLogEntry($old, $id);
-      // send notify mails
-      notify($id,'admin',$oldRev,'',false);
-      notify($id,'subscribers',$oldRev,'',false);
+      addLogEntry($old, $id, DOKU_CHANGE_TYPE_EDIT, $lang['external_edit'], '', array('ExternalEdit'=>true));
       // remove soon to be stale instructions
       $cache = new cache_instructions($id, $file);
       $cache->removeCache();
@@ -751,14 +777,14 @@ function saveWikiText($id,$text,$summary,$minor=false){
 
   // select changelog line type
   $extra = '';
-  $type = 'E';
+  $type = DOKU_CHANGE_TYPE_EDIT;
   if ($wasReverted) {
-    $type = 'R';
+    $type = DOKU_CHANGE_TYPE_REVERT;
     $extra = $REV;
   }
-  else if ($wasCreated) { $type = 'C'; }
-  else if ($wasRemoved) { $type = 'D'; }
-  else if ($minor && $conf['useacl'] && $_SERVER['REMOTE_USER']) { $type = 'e'; } //minor edits only for logged in users
+  else if ($wasCreated) { $type = DOKU_CHANGE_TYPE_CREATE; }
+  else if ($wasRemoved) { $type = DOKU_CHANGE_TYPE_DELETE; }
+  else if ($minor && $conf['useacl'] && $_SERVER['REMOTE_USER']) { $type = DOKU_CHANGE_TYPE_MINOR_EDIT; } //minor edits only for logged in users
 
   addLogEntry($newRev, $id, $type, $summary, $extra);
   // send notify mails
@@ -800,6 +826,7 @@ function saveOldRevision($id){
 function notify($id,$who,$rev='',$summary='',$minor=false,$replace=array()){
   global $lang;
   global $conf;
+  global $INFO;
 
   // decide if there is something to do
   if($who == 'admin'){
@@ -827,7 +854,7 @@ function notify($id,$who,$rev='',$summary='',$minor=false,$replace=array()){
   $text = str_replace('@BROWSER@',$_SERVER['HTTP_USER_AGENT'],$text);
   $text = str_replace('@IPADDRESS@',$_SERVER['REMOTE_ADDR'],$text);
   $text = str_replace('@HOSTNAME@',gethostbyaddr($_SERVER['REMOTE_ADDR']),$text);
-  $text = str_replace('@NEWPAGE@',wl($id,'',true),$text);
+  $text = str_replace('@NEWPAGE@',wl($id,'',true,'&'),$text);
   $text = str_replace('@PAGE@',$id,$text);
   $text = str_replace('@TITLE@',$conf['title'],$text);
   $text = str_replace('@DOKUWIKIURL@',DOKU_URL,$text);
@@ -842,7 +869,7 @@ function notify($id,$who,$rev='',$summary='',$minor=false,$replace=array()){
     $subject = $lang['mail_new_user'].' '.$summary;
   }elseif($rev){
     $subject = $lang['mail_changed'].' '.$id;
-    $text = str_replace('@OLDPAGE@',wl($id,"rev=$rev",true),$text);
+    $text = str_replace('@OLDPAGE@',wl($id,"rev=$rev",true,'&'),$text);
     require_once(DOKU_INC.'inc/DifferenceEngine.php');
     $df  = new Diff(split("\n",rawWiki($id,$rev)),
                     split("\n",rawWiki($id)));
@@ -856,7 +883,12 @@ function notify($id,$who,$rev='',$summary='',$minor=false,$replace=array()){
   $text = str_replace('@DIFF@',$diff,$text);
   $subject = '['.$conf['title'].'] '.$subject;
 
-  mail_send($to,$subject,$text,$conf['mailfrom'],'',$bcc);
+  $from = $conf['mailfrom'];
+  $from = str_replace('@USER@',$_SERVER['REMOTE_USER'],$from);
+  $from = str_replace('@NAME@',$INFO['userinfo']['name'],$from);
+  $from = str_replace('@MAIL@',$INFO['userinfo']['mail'],$from);
+
+  mail_send($to,$subject,$text,$from,'',$bcc);
 }
 
 /**

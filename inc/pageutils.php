@@ -52,6 +52,25 @@ function getID($param='id',$clean=true){
     //strip leading slashes
     $id = preg_replace('!^/+!','',$id);
   }
+
+  // Namespace autolinking from URL
+  if(substr($id,-1) == ':' || ($conf['useslash'] && substr($id,-1) == '/')){
+    if(@file_exists(wikiFN($id.$conf['start']))){
+      // start page inside namespace
+      $id = $id.$conf['start'];
+    }elseif(@file_exists(wikiFN($id.noNS(cleanID($id))))){
+      // page named like the NS inside the NS
+      $id = $id.noNS(cleanID($id));
+    }elseif(@file_exists(wikiFN($id))){
+      // page like namespace exists
+      $id = substr($id,0,-1);
+    }else{
+      // fall back to default
+      $id = $id.$conf['start'];
+    }
+    header("Location: ".wl($id,'',true));
+  }
+
   if($clean) $id = cleanID($id);
   if(empty($id) && $param=='id') $id = $conf['start'];
 
@@ -79,7 +98,7 @@ function cleanID($raw_id,$ascii=false){
   // check if it's already in the memory cache
   if (isset($cache[$raw_id])) {
     return $cache[$raw_id];
-	}
+    }
 
   $sepchar = $conf['sepchar'];
   if($sepcharpat == null) // build string only once to save clock cycles
@@ -139,6 +158,33 @@ function noNS($id) {
   } else {
     return $id;
   }
+}
+
+/**
+* Returns the current namespace
+*
+* @author Nathan Fritz <fritzn@crown.edu>
+*/
+function curNS($id) {
+    return noNS(getNS($id));
+}
+
+/**
+* Returns the ID without the namespace or current namespace for 'start' pages
+*
+* @author Nathan Fritz <fritzn@crown.edu>
+*/
+function noNSorNS($id) {
+    global $conf;
+
+    $p = noNS($id);
+    if ($p == $conf['start']) {
+        $p = curNS($id);
+        if ($p == false) {
+            return noNS($id);
+        }
+    }
+    return $p;
 }
 
 /**
@@ -341,8 +387,8 @@ function resolve_pageid($ns,&$page,&$exists){
   // get filename (calls clean itself)
   $file = wikiFN($page);
 
-  // if ends with colon we have a namespace link
-  if(substr($page,-1) == ':'){
+  // if ends with colon or slash we have a namespace link
+  if(substr($page,-1) == ':' || ($conf['useslash'] && substr($page,-1) == '/')){
     if(@file_exists(wikiFN($page.$conf['start']))){
       // start page inside namespace
       $page = $page.$conf['start'];
@@ -439,7 +485,7 @@ function isVisiblePage($id){
 function http_conditionalRequest($timestamp){
   // A PHP implementation of conditional get, see
   //   http://fishbowl.pastiche.org/archives/001132.html
-  $last_modified = substr(date('r', $timestamp), 0, -5).'GMT';
+  $last_modified = substr(gmdate('r', $timestamp), 0, -5).'GMT';
   $etag = '"'.md5($last_modified).'"';
   // Send the headers
   header("Last-Modified: $last_modified");

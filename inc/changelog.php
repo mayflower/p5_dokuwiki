@@ -6,6 +6,14 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
+// Constants for known core changelog line types.
+// Use these in place of string literals for more readable code.
+define('DOKU_CHANGE_TYPE_CREATE',       'C');
+define('DOKU_CHANGE_TYPE_EDIT',         'E');
+define('DOKU_CHANGE_TYPE_MINOR_EDIT',   'e');
+define('DOKU_CHANGE_TYPE_DELETE',       'D');
+define('DOKU_CHANGE_TYPE_REVERT',       'R');
+
 /**
  * parses a changelog line into it's components
  *
@@ -33,18 +41,22 @@ function parseChangelogLine($line) {
  * @author Esther Brunner <wikidesign@gmail.com>
  * @author Ben Coburn <btcoburn@silicodon.net>
  */
-function addLogEntry($date, $id, $type='E', $summary='', $extra=''){
+function addLogEntry($date, $id, $type=DOKU_CHANGE_TYPE_EDIT, $summary='', $extra='', $flags=null){
   global $conf, $INFO;
+
+  // check for special flags as keys
+  if (!is_array($flags)) { $flags = array(); }
+  $flagExternalEdit = isset($flags['ExternalEdit']);
 
   $id = cleanid($id);
   $file = wikiFN($id);
   $created = @filectime($file);
-  $minor = ($type==='e');
-  $wasRemoved = ($type==='D');
+  $minor = ($type===DOKU_CHANGE_TYPE_MINOR_EDIT);
+  $wasRemoved = ($type===DOKU_CHANGE_TYPE_DELETE);
 
   if(!$date) $date = time(); //use current time if none supplied
-  $remote = $_SERVER['REMOTE_ADDR'];
-  $user   = $_SERVER['REMOTE_USER'];
+  $remote = (!$flagExternalEdit)?$_SERVER['REMOTE_ADDR']:'127.0.0.1';
+  $user   = (!$flagExternalEdit)?$_SERVER['REMOTE_USER']:'';
 
   $strip = array("\t", "\n");
   $logline = array(
@@ -104,7 +116,7 @@ function getRecents($first,$num,$ns='',$flags=0){
     return $recent;
 
   // read all recent changes. (kept short)
-  $lines = file($conf['changelog']);
+  $lines = @file($conf['changelog']);
 
 
   // handle lines
@@ -143,7 +155,7 @@ function _handleRecent($line,$ns,$flags){
   if(isset($seen[$recent['id']])) return false;
 
   // skip minors
-  if($recent['type']==='e' && ($flags & RECENTS_SKIP_MINORS)) return false;
+  if($recent['type']===DOKU_CHANGE_TYPE_MINOR_EDIT && ($flags & RECENTS_SKIP_MINORS)) return false;
 
   // remember in seen to skip additional sights
   $seen[$recent['id']] = 1;

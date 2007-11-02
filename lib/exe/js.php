@@ -35,17 +35,16 @@ function js_out(){
     $write = (bool) $_REQUEST['write'];  // writable?
 
     // The generated script depends on some dynamic options
-    $cache = getCacheName('scripts'.$edit.'x'.$write,'.js'); 
+    $cache = getCacheName('scripts'.$edit.'x'.$write,'.js');
 
     // Array of needed files
     $files = array(
+                DOKU_INC.'lib/scripts/helpers.js',
                 DOKU_INC.'lib/scripts/events.js',
                 DOKU_INC.'lib/scripts/cookie.js',
                 DOKU_INC.'lib/scripts/script.js',
                 DOKU_INC.'lib/scripts/tw-sack.js',
                 DOKU_INC.'lib/scripts/ajax.js',
-                DOKU_INC.'lib/scripts/domLib.js',
-                DOKU_INC.'lib/scripts/domTT.js',
              );
     if($edit){
         if($write){
@@ -77,7 +76,8 @@ function js_out(){
     ob_start();
 
     // add some global variables
-    print "var DOKU_BASE   = '".DOKU_BASE.basename(DOKU_INC)."/"."';";
+    print "var DOKU_BASE   = '".DOKU_BASE.basename(DOKU_INC).'/'."';";
+    print "var DOKU_TPL    = '".DOKU_TPL."';";
 
     //FIXME: move thes into LANG
     print "var alertText   = '".js_escape($lang['qb_alert'])."';";
@@ -91,7 +91,7 @@ function js_out(){
     // load files
     foreach($files as $file){
         echo "\n\n/* XXXXXXXXXX begin of $file XXXXXXXXXX */\n\n";
-        @readfile($file);
+        js_load($file);
         echo "\n\n/* XXXXXXXXXX end of $file XXXXXXXXXX */\n\n";
     }
 
@@ -132,7 +132,7 @@ function js_out(){
     foreach($plugins as $plugin){
         if (@file_exists($plugin)) {
           echo "\n\n/* XXXXXXXXXX begin of $plugin XXXXXXXXXX */\n\n";
-          @readfile($plugin);
+          js_load($plugin);
           echo "\n\n/* XXXXXXXXXX end of $plugin XXXXXXXXXX */\n\n";
         }
     }
@@ -154,6 +154,8 @@ function js_out(){
         $js = js_compress($js);
     }
 
+    $js .= "\n"; // https://bugzilla.mozilla.org/show_bug.cgi?id=316033
+
     // save cache file
     io_saveFile($cache,$js);
 
@@ -162,11 +164,45 @@ function js_out(){
 }
 
 /**
+ * Load the given file, handle include calls and print it
+ *
+ * @author Andreas Gohr <andi@splitbrain.org>
+ */
+function js_load($file){
+    if(!@file_exists($file)) return;
+    static $loaded = array();
+
+    $data = io_readFile($file);
+    while(preg_match('#/\*\s*DOKUWIKI:include(_once)?\s+([\w\./]+)\s*\*/#',$data,$match)){
+        $ifile = $match[2];
+
+        // is it a include_once?
+        if($match[1]){
+            $base = basename($ifile);
+            if($loaded[$base]) continue;
+            $loaded[$base] = true;
+        }
+
+        if($ifile{0} != '/') $ifile = dirname($file).'/'.$ifile;
+
+        if(@file_exists($ifile)){
+            $idata = io_readFile($ifile);
+        }else{
+            $idata = '';
+        }
+        $data  = str_replace($match[0],$idata,$data);
+    }
+    echo $data;
+}
+
+/**
  * Checks if a JavaScript Cache file still is valid
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function js_cacheok($cache,$files){
+    if($_REQUEST['purge']) return false; //support purge request
+
     $ctime = @filemtime($cache);
     if(!$ctime) return false; //There is no cache
 
@@ -221,26 +257,36 @@ function js_runonstart($func){
 /**
  * Strip comments and whitespaces from given JavaScript Code
  *
- * This is a rewrite of Nick Galbreaths python tool jsstrip.py which is
+ * This is a port of Nick Galbreath's python tool jsstrip.py which is
  * released under BSD license. See link for original code.
  *
  * @author Nick Galbreath <nickg@modp.com>
  * @author Andreas Gohr <andi@splitbrain.org>
- * @link http://modp.com/release/jsstrip/
+ * @link   http://code.google.com/p/jsstrip/
  */
 function js_compress($s){
-    $i = 0;
-    $line = 0;
+    $s = ltrim($s);     // strip all initial whitespace
     $s .= "\n";
-    $len = strlen($s);
+    $i = 0;             // char index for input string
+    $j = 0;             // char forward index for input string
+    $line = 0;          // line number of file (close to it anyways)
+    $slen = strlen($s); // size of input string
+    $lch  = '';         // last char added
+    $result = '';       // we store the final result here
 
     // items that don't need spaces next to them
-    $chars = '^&|!+\-*\/%=\?:;,{}()<>% \t\n\r';
+    $chars = "^&|!+\-*\/%=\?:;,{}()<>% \t\n\r'\"[]";
 
-    ob_start();
-    while($i < $len){
+    while($i < $slen){
+        // skip all "boring" characters.  This is either
+        // reserved word (e.g. "for", "else", "if") or a
+        // variable/object/method (e.g. "foo.color")
+        while ($i < $slen && (strpos($chars,$s[$i]) === false) ){
+            $result .= $s{$i};
+            $i = $i + 1;
+        }
+
         $ch = $s{$i};
-
         // multiline comments (keeping IE conditionals)
         if($ch == '/' && $s{$i+1} == '*' && $s{$i+2} != '@'){
             $endC = strpos($s,'*/',$i+2);
@@ -274,7 +320,7 @@ function js_compress($s){
                     }
                     if($s{$i+$j} == '\\') $j = $j + 2;
                 }
-                echo substr($s,$i,$j+1);
+                $result .= substr($s,$i,$j+1);
                 $i = $i + $j + 1;
                 continue;
             }
@@ -283,14 +329,14 @@ function js_compress($s){
         // double quote strings
         if($ch == '"'){
             $j = 1;
-            while( $s{$i+$j} != '"' && ($i+$j < $len)){
+            while( $s{$i+$j} != '"' && ($i+$j < $slen)){
                 if( $s{$i+$j} == '\\' && ($s{$i+$j+1} == '"' || $s{$i+$j+1} == '\\') ){
                     $j += 2;
                 }else{
                     $j += 1;
                 }
             }
-            echo substr($s,$i,$j+1);
+            $result .= substr($s,$i,$j+1);
             $i = $i + $j + 1;
             continue;
         }
@@ -298,51 +344,44 @@ function js_compress($s){
         // single quote strings
         if($ch == "'"){
             $j = 1;
-            while( $s{$i+$j} != "'" && ($i+$j < $len)){
+            while( $s{$i+$j} != "'" && ($i+$j < $slen)){
                 if( $s{$i+$j} == '\\' && ($s{$i+$j+1} == "'" || $s{$i+$j+1} == '\\') ){
                     $j += 2;
                 }else{
                     $j += 1;
                 }
             }
-            echo substr($s,$i,$j+1);
+            $result .= substr($s,$i,$j+1);
             $i = $i + $j + 1;
             continue;
         }
 
-        // newlines
-        if($ch == "\n" || $ch == "\r"){
-            $i = $i+1;
-            continue;
-        }
-
-        // leading spaces
-        if( ( $ch == ' ' ||
-              $ch == "\n" ||
-              $ch == "\t" ) &&
-            !preg_match('/['.$chars.']/',$s{$i+1}) ){
-            $i = $i+1;
-            continue;
-        }
-
-        // trailing spaces
-        if( ( $ch == ' ' ||
-              $ch == "\n" ||
-              $ch == "\t" ) &&
-            !preg_match('/['.$chars.']/',$s{$i-1}) ){
-            $i = $i+1;
-            continue;
+        // whitespaces
+        if( $ch == ' ' || $ch == "\r" || $ch == "\n" || $ch == "\t" ){
+            // leading spaces
+            if($i+1 < $slen && (strpos($chars,$s[$i+1]) !== false)){
+                $i = $i + 1;
+                continue;
+            }
+            // trailing spaces
+            //  if this ch is space AND the last char processed
+            //  is special, then skip the space
+            $lch = substr($result,-1);
+            if($lch && (strpos($chars,$lch) !== false)){
+                $i = $i + 1;
+                continue;
+            }
+            // else after all of this convert the "whitespace" to
+            // a single space.  It will get appended below
+            $ch = ' ';
         }
 
         // other chars
-        echo $ch;
+        $result .= $ch;
         $i = $i + 1;
     }
 
-
-    $out = ob_get_contents();
-    ob_end_clean();
-    return $out;
+    return trim($result);
 }
 
 //Setup VIM: ex: et ts=4 enc=utf-8 :
