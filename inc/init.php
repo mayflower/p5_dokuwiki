@@ -54,7 +54,13 @@
 
   // define baseURL
   if(!defined('DOKU_REL')) define('DOKU_REL',getBaseURL(false));
-  if(!defined('DOKU_URL')) define('DOKU_URL',getBaseURL(true));
+  if(!defined('DOKU_URL')) {
+    if (strstr(getBaseURL(true), 'dokuwiki')) {
+      define('DOKU_URL',dirname(getBaseURL(true)).'/');
+    } else {
+      define('DOKU_URL',getBaseURL(true));
+    }
+  } 
   if(!defined('DOKU_BASE')){
     if($conf['canonical']){
       define('DOKU_BASE',DOKU_URL);
