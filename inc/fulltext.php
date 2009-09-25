@@ -6,27 +6,38 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-  if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../').'/');
-  require_once(DOKU_INC.'inc/indexer.php');
+if(!defined('DOKU_INC')) die('meh.');
+require_once(DOKU_INC.'inc/indexer.php');
 
-
-/**
- * Wrapper around preg_quote adding the default delimiter
- */
-function ft_preg_quote_cb($string){
-    return preg_quote($string,'/');
-}
 
 /**
  * The fulltext search
  *
  * Returns a list of matching documents for the given query
  *
+ * refactored into ft_pageSearch(), _ft_pageSearch() and trigger_event()
+ *
  */
-function ft_pageSearch($query,&$poswords){
+function ft_pageSearch($query,&$highlight){
+
+  $data['query'] = $query;
+  $data['highlight'] =& $highlight;
+
+  return trigger_event('SEARCH_QUERY_FULLPAGE', $data, '_ft_pageSearch');
+}
+function _ft_pageSearch(&$data){
+    // split out original parameters
+    $query = $data['query'];
+    $highlight =& $data['highlight'];
+
     $q = ft_queryParser($query);
-    // use this for higlighting later:
-    $poswords = str_replace('*','',join(' ',$q['and']));
+
+    $highlight = array();
+
+    // remember for hilighting later
+    foreach($q['words'] as $wrd){
+        $highlight[] =  str_replace('*','',$wrd);
+    }
 
     // lookup all words found in the query
     $words  = array_merge($q['and'],$q['not']);
@@ -75,15 +86,18 @@ function ft_pageSearch($query,&$poswords){
     if(!count($docs)) return array();
     // handle phrases
     if(count($q['phrases'])){
-        //build a regexp
         $q['phrases'] = array_map('utf8_strtolower',$q['phrases']);
-        $q['phrases'] = array_map('ft_preg_quote_cb',$q['phrases']);
-        $regex = '('.join('|',$q['phrases']).')';
+        // use this for higlighting later:
+        $highlight = array_merge($highlight,$q['phrases']);
+        $q['phrases'] = array_map('preg_quote_cb',$q['phrases']);
         // check the source of all documents for the exact phrases
         foreach(array_keys($docs) as $id){
             $text  = utf8_strtolower(rawWiki($id));
-            if(!preg_match('/'.$regex.'/usi',$text)){
-                unset($docs[$id]); // no hit - remove
+            foreach($q['phrases'] as $phrase){
+                if(!preg_match('/'.$phrase.'/usi',$text)){
+                    unset($docs[$id]); // no hit - remove
+                    break;
+                }
             }
         }
     }
@@ -147,14 +161,75 @@ function ft_backlinks($id){
 }
 
 /**
+ * Returns the pages that use a given media file
+ *
+ * Does a quick lookup with the fulltext index, then
+ * evaluates the instructions of the found pages
+ *
+ * Aborts after $max found results
+ */
+function ft_mediause($id,$max){
+    global $conf;
+    $swfile   = DOKU_INC.'inc/lang/'.$conf['lang'].'/stopwords.txt';
+    $stopwords = @file_exists($swfile) ? file($swfile) : array();
+
+    if(!$max) $max = 1; // need to find at least one
+
+    $result = array();
+
+    // quick lookup of the mediafile
+    $media   = noNS($id);
+    $matches = idx_lookup(idx_tokenizer($media,$stopwords));
+    $docs    = array_keys(ft_resultCombine(array_values($matches)));
+    if(!count($docs)) return $result;
+
+    // go through all found pages
+    $found = 0;
+    $pcre  = preg_quote($media,'/');
+    foreach($docs as $doc){
+        $ns = getNS($doc);
+        preg_match_all('/\{\{([^|}]*'.$pcre.'[^|}]*)(|[^}]+)?\}\}/i',rawWiki($doc),$matches);
+        foreach($matches[1] as $img){
+            $img = trim($img);
+            if(preg_match('/^https?:\/\//i',$img)) continue; // skip external images
+            list($img) = explode('?',$img);                  // remove any parameters
+            resolve_mediaid($ns,$img,$exists);               // resolve the possibly relative img
+
+            if($img == $id){                                 // we have a match
+                $result[] = $doc;
+                $found++;
+                break;
+            }
+        }
+        if($found >= $max) break;
+    }
+
+    sort($result);
+    return $result;
+}
+
+
+
+/**
  * Quicksearch for pagenames
  *
  * By default it only matches the pagename and ignores the
  * namespace. This can be changed with the second parameter
  *
+ * refactored into ft_pageLookup(), _ft_pageLookup() and trigger_event()
+ *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function ft_pageLookup($id,$pageonly=true){
+    $data = array('id' => $id, 'pageonly' => $pageonly);
+    return trigger_event('SEARCH_QUERY_PAGELOOKUP',$data,'_ft_pageLookup');
+}
+
+function _ft_pageLookup(&$data){
+    // split out original parameterrs
+    $id = $data['id'];
+    $pageonly = $data['pageonly'];
+
     global $conf;
     $id    = preg_quote($id,'/');
     $pages = file($conf['indexdir'].'/page.idx');
@@ -168,7 +243,7 @@ function ft_pageLookup($id,$pageonly=true){
                 continue;
             }
         }
-        if(!@file_exists(wikiFN($pages[$i]))){
+        if(!page_exists($pages[$i])){
             unset($pages[$i]);
             continue;
         }
@@ -179,14 +254,30 @@ function ft_pageLookup($id,$pageonly=true){
 
     // check ACL permissions
     foreach(array_keys($pages) as $idx){
-        if(auth_quickaclcheck($pages[$idx]) < AUTH_READ){
+        if(auth_quickaclcheck(trim($pages[$idx])) < AUTH_READ){
             unset($pages[$idx]);
         }
     }
 
     $pages = array_map('trim',$pages);
-    sort($pages);
+    usort($pages,'ft_pagesorter');
     return $pages;
+}
+
+/**
+ * Sort pages based on their namespace level first, then on their string
+ * values. This makes higher hierarchy pages rank higher than lower hierarchy
+ * pages.
+ */
+function ft_pagesorter($a, $b){
+    $ac = count(explode(':',$a));
+    $bc = count(explode(':',$b));
+    if($ac < $bc){
+        return -1;
+    }elseif($ac > $bc){
+        return 1;
+    }
+    return strcmp ($a,$b);
 }
 
 /**
@@ -194,18 +285,18 @@ function ft_pageLookup($id,$pageonly=true){
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function ft_snippet($id,$poswords){
-    $poswords = preg_quote($poswords,'#');
-    $re       = '('.str_replace(' ','|',$poswords).')';
+function ft_snippet($id,$highlight){
     $text     = rawWiki($id);
-
     $match = array();
     $snippets = array();
     $utf8_offset = $offset = $end = 0;
     $len = utf8_strlen($text);
 
+    // build a regexp from the phrases to highlight
+    $re = join('|',array_map('preg_quote_cb',array_filter((array) $highlight)));
+
     for ($cnt=3; $cnt--;) {
-      if (!preg_match('#'.$re.'#iu',$text,$match,PREG_OFFSET_CAPTURE,$offset)) break;
+      if (!preg_match('#('.$re.')#iu',$text,$match,PREG_OFFSET_CAPTURE,$offset)) break;
 
       list($str,$idx) = $match[0];
 
@@ -256,7 +347,7 @@ function ft_snippet($id,$poswords){
     }
 
     $m = "\1";
-    $snippets = preg_replace('#'.$re.'#iu',$m.'$1'.$m,$snippets);
+    $snippets = preg_replace('#('.$re.')#iu',$m.'$1'.$m,$snippets);
     $snippet = preg_replace('#'.$m.'([^'.$m.']*?)'.$m.'#iu','<strong class="search_hit">$1</strong>',hsc(join('... ',$snippets)));
 
     return $snippet;
@@ -280,14 +371,14 @@ function ft_resultCombine($args){
 
     $result = array();
     if ($array_count > 1) {
-      foreach ($args[0] as $key1 => $value1) {
+      foreach ($args[0] as $key => $value) {
+        $result[$key] = $value;
         for ($i = 1; $i !== $array_count; $i++) {
-            foreach ($args[$i] as $key2 => $value2) {
-                if ((string) $key1 === (string) $key2) {
-                    if(!isset($result[$key1])) $result[$key1] = $value1;
-                    $result[$key1] += $value2;
-                }
+            if (!isset($args[$i][$key])) {
+                unset($result[$key]);
+                break;
             }
+            $result[$key] += $args[$i][$key];
         }
       }
     }
@@ -312,6 +403,7 @@ function ft_queryParser($query){
     $q['query']   = $query;
     $q['ns']      = array();
     $q['phrases'] = array();
+    $q['words']   = array();
     $q['and']     = array();
     $q['not']     = array();
 
@@ -324,7 +416,7 @@ function ft_queryParser($query){
     // handle phrase searches
     while(preg_match('/"(.*?)"/',$query,$match)){
         $q['phrases'][] = $match[1];
-        $q['and'] = array_merge(idx_tokenizer($match[0],$stopwords));
+        $q['and'] = array_merge($q['and'], idx_tokenizer($match[0],$stopwords));
         $query = preg_replace('/"(.*?)"/','',$query,1);
     }
 
@@ -335,12 +427,15 @@ function ft_queryParser($query){
             if(count($token)) $q['not'] = array_merge($q['not'],$token);
         }else{
             // asian "words" need to be searched as phrases
-            if(@preg_match_all('/('.IDX_ASIAN.'+)/u',$w,$matches)){
+            if(@preg_match_all('/(('.IDX_ASIAN.')+)/u',$w,$matches)){
                 $q['phrases'] = array_merge($q['phrases'],$matches[1]);
 
             }
             $token = idx_tokenizer($w,$stopwords,true);
-            if(count($token)) $q['and'] = array_merge($q['and'],$token);
+            if(count($token)){
+                $q['and']   = array_merge($q['and'],$token);
+                $q['words'] = array_merge($q['words'],$token);
+            }
         }
     }
 

@@ -134,7 +134,7 @@ class DokuWiki_Syntax_Plugin extends Doku_Parser_Mode {
                 $this->allowedModes = array_merge($this->allowedModes, $PARSER_MODES[$mt]);
             }
 
-            $idx = array_search(substr(get_class($this), 7), $this->allowedModes);
+            $idx = array_search(substr(get_class($this), 7), (array) $this->allowedModes);
             if ($idx !== false) {
               unset($this->allowedModes[$idx]);
             }
@@ -266,5 +266,13 @@ class DokuWiki_Syntax_Plugin extends Doku_Parser_Mode {
     return $conf;
   }
 
+  /**
+   * Allow the plugin to prevent DokuWiki creating a second instance of itself
+   *
+   * @return bool   true if the plugin can not be instantiated more than once
+   */
+  function isSingleton() {
+    return false;
+  }
 }
 //Setup VIM: ex: et ts=4 enc=utf-8 :

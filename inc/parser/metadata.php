@@ -4,8 +4,7 @@
  *
  * @author Esther Brunner <wikidesign@gmail.com>
  */
-
-if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../').'/');
+if(!defined('DOKU_INC')) die('meh.');
 
 if ( !defined('DOKU_LF') ) {
     // Some whitespace to help View > Source
@@ -42,11 +41,14 @@ class Doku_Renderer_metadata extends Doku_Renderer {
   }
 
   function document_end(){
+    // store internal info in metadata (notoc,nocache)
+    $this->meta['internal'] = $this->info;
+
     if (!$this->meta['description']['abstract']){
       // cut off too long abstracts
       $this->doc = trim($this->doc);
       if (strlen($this->doc) > 500)
-        $this->doc = substr($this->doc, 0, 500).'…';
+        $this->doc = utf8_substr($this->doc, 0, 500).'…';
       $this->meta['description']['abstract'] = $this->doc;
     }
   }
@@ -195,7 +197,11 @@ class Doku_Renderer_metadata extends Doku_Renderer {
 
   function php($text){}
 
+  function phpblock($text){}
+
   function html($text){}
+
+  function htmlblock($text){}
 
   function preformatted($text){
     if ($this->capture) $this->doc .= $text;
@@ -257,7 +263,7 @@ class Doku_Renderer_metadata extends Doku_Renderer {
 
   function apostrophe() {
     global $lang;
-    $this->doc .= $lang['apostrophe'];
+    if ($this->capture) $this->doc .= $lang['apostrophe'];
   }
 
   function doublequoteopening(){
@@ -420,7 +426,7 @@ class Doku_Renderer_metadata extends Doku_Renderer {
 
     $isImage = false;
     if (is_null($title)){
-      if ($conf['useheading'] && $id){
+      if (useHeading('content') && $id){
         $heading = p_get_first_heading($id,false);
         if ($heading) return $heading;
       }

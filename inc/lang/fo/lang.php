@@ -120,7 +120,7 @@ $lang['summary']    = 'Samandráttur';
 $lang['mail_newpage'] = 'skjal skoyta uppí:';
 $lang['mail_changed'] = 'skjal broytt:';
 
-$lang['nosmblinks'] = 'Ávísingar til Windows shares virka bert í Microsoft Internet Explorer.\nTú kanst enn avrita og sata inn slóðina.';
+$lang['js']['nosmblinks'] = "Ávísingar til Windows shares virka bert í Microsoft Internet Explorer.\nTú kanst enn avrita og sata inn slóðina.";
 
 $lang['qb_alert']   = 'Skriva tann tekst tú ynskir at forsniða.\nHann verður skoyttur uppí í endanum av skjalinum.';
 $lang['qb_bold']    = 'Feit';
@@ -145,13 +145,6 @@ $lang['qb_chars']   = 'Sertekn';
 
 $lang['del_confirm']= 'Strika post(ar)?';
 $lang['admin_register']= 'Upprætta nýggjan brúkara';
-
-$lang['spell_start']= 'Staveftirlit';
-$lang['spell_stop'] = 'Hald áfram við rætting';
-$lang['spell_wait'] = 'Bíða eitt bil...';
-$lang['spell_noerr']= 'Ongin villa var funnin';
-$lang['spell_nosug']= 'Ongin uppskot funnin';
-$lang['spell_change']= 'Broyt';
 
 $lang['metaedit']    = 'Rætta metadáta';
 $lang['metasaveerr'] = 'Brek við skriving av metadáta';

@@ -8,15 +8,7 @@
 
 //  xdebug_start_profiling();
 
-
-  // PHProjekt watch: only as logged in user accessible.
-  if ( !isset($_SESSION['logged_in']) || !$_SESSION['logged_in']) {
-    die();
-  }
-  // limit to group "int", special case for phprojekt.mayflowerserver.de
-  if ($user_group != PHPDW_PERMIT_GROUP) die('Currently there is no wiki for your group installed - please consult your system administrator');
-
-  if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__)).'/');
+  if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/');
   require_once(DOKU_INC.'inc/init.php');
   require_once(DOKU_INC.'inc/common.php');
   require_once(DOKU_INC.'inc/events.php');
@@ -63,10 +55,10 @@
     exit;
   }
 
-  //send 404 for missing pages if configured
-  if($conf['send404'] &&
-     ($ACT == 'show' || substr($ACT,0,7) == 'export_') &&
-     !$INFO['exists']){
+  //send 404 for missing pages if configured or ID has special meaning to bots
+  if(!$INFO['exists'] &&
+     ($conf['send404'] || preg_match('/^(robots\.txt|sitemap\.xml(\.gz)?|favicon\.ico|crossdomain\.xml)$/',$ID)) &&
+     ($ACT == 'show' || substr($ACT,0,7) == 'export_') ){
     header('HTTP/1.0 404 Not Found');
   }
 
@@ -87,5 +79,4 @@
   trigger_event('DOKUWIKI_DONE', $tmp=array());
 
 //  xdebug_dump_function_profile(1);
-
 ?>

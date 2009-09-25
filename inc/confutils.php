@@ -6,7 +6,6 @@
  * @author     Harry Fuecks <hfuecks@gmail.com>
  */
 
-  if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../').'/');
 
 /**
  * Returns the (known) extension and mimetype of a given filename
@@ -14,7 +13,7 @@
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function mimetype($file){
-  $ret    = array(false,false); // return array
+  $ret    = array(false,false,false); // return array
   $mtypes = getMimeTypes();     // known mimetypes
   $exts   = join('|',array_keys($mtypes));  // known extensions (regexp)
   if(preg_match('#\.('.$exts.')$#i',$file,$matches)){
@@ -22,7 +21,11 @@ function mimetype($file){
   }
 
   if($ext && $mtypes[$ext]){
-    $ret = array($ext, $mtypes[$ext]);
+    if($mtypes[$ext][0] == '!'){
+        $ret = array($ext, substr($mtypes[$ext],1), true);
+    }else{
+        $ret = array($ext, $mtypes[$ext], false);
+    }
   }
 
   return $ret;
@@ -36,11 +39,7 @@ function mimetype($file){
 function getMimeTypes() {
   static $mime = NULL;
   if ( !$mime ) {
-    $mime = confToHash(DOKU_CONF.'mime.conf');
-    if (@file_exists(DOKU_CONF.'mime.local.conf')) {
-      $local = confToHash(DOKU_CONF.'mime.local.conf');
-      $mime = array_merge($mime, $local);
-    }
+    $mime = retrieveConfig('mime','confToHash');
   }
   return $mime;
 }
@@ -53,11 +52,7 @@ function getMimeTypes() {
 function getAcronyms() {
   static $acronyms = NULL;
   if ( !$acronyms ) {
-    $acronyms = confToHash(DOKU_CONF.'acronyms.conf');
-    if (@file_exists(DOKU_CONF.'acronyms.local.conf')) {
-      $local = confToHash(DOKU_CONF.'acronyms.local.conf');
-      $acronyms = array_merge($acronyms, $local);
-    }
+    $acronyms = retrieveConfig('acronyms','confToHash');
   }
   return $acronyms;
 }
@@ -70,11 +65,7 @@ function getAcronyms() {
 function getSmileys() {
   static $smileys = NULL;
   if ( !$smileys ) {
-    $smileys = confToHash(DOKU_CONF.'smileys.conf');
-    if (@file_exists(DOKU_CONF.'smileys.local.conf')) {
-      $local = confToHash(DOKU_CONF.'smileys.local.conf');
-      $smileys = array_merge($smileys, $local);
-    }
+    $smileys = retrieveConfig('smileys','confToHash');
   }
   return $smileys;
 }
@@ -87,11 +78,7 @@ function getSmileys() {
 function getEntities() {
   static $entities = NULL;
   if ( !$entities ) {
-    $entities = confToHash(DOKU_CONF.'entities.conf');
-    if (@file_exists(DOKU_CONF.'entities.local.conf')) {
-      $local = confToHash(DOKU_CONF.'entities.local.conf');
-      $entities = array_merge($entities, $local);
-    }
+    $entities = retrieveConfig('entities','confToHash');
   }
   return $entities;
 }
@@ -104,11 +91,7 @@ function getEntities() {
 function getInterwiki() {
   static $wikis = NULL;
   if ( !$wikis ) {
-    $wikis = confToHash(DOKU_CONF.'interwiki.conf',true);
-    if (@file_exists(DOKU_CONF.'interwiki.local.conf')) {
-      $local = confToHash(DOKU_CONF.'interwiki.local.conf');
-      $wikis = array_merge($wikis, $local);
-    }
+    $wikis = retrieveConfig('interwiki','confToHash',array(true));
   }
   //add sepecial case 'this'
   $wikis['this'] = DOKU_URL.'{NAME}';
@@ -122,15 +105,22 @@ function getInterwiki() {
 function getWordblocks() {
   static $wordblocks = NULL;
   if ( !$wordblocks ) {
-    $wordblocks = file(DOKU_CONF.'wordblock.conf');
-    if (@file_exists(DOKU_CONF.'wordblock.local.conf')) {
-      $local = file(DOKU_CONF.'wordblock.local.conf');
-      $wordblocks = array_merge($wordblocks, $local);
-    }
+    $wordblocks = retrieveConfig('wordblock','file');
   }
   return $wordblocks;
 }
 
+
+function getSchemes() {
+  static $schemes = NULL;
+  if ( !$schemes ) {
+    $schemes = retrieveConfig('scheme','file');
+  }
+  $schemes = array_map('trim', $schemes);
+  $schemes = preg_replace('/^#.*/', '', $schemes);
+  $schemes = array_filter($schemes);
+  return $schemes;
+}
 
 /**
  * Builds a hash from a configfile
@@ -147,8 +137,9 @@ function confToHash($file,$lower=false) {
   if ( !$lines ) return $conf;
 
   foreach ( $lines as $line ) {
-    //ignore comments
-    $line = preg_replace('/(?<!&)#.*$/','',$line);
+    //ignore comments (except escaped ones)
+    $line = preg_replace('/(?<![&\\\\])#.*$/','',$line);
+    $line = str_replace('\\#','#',$line);
     $line = trim($line);
     if(empty($line)) continue;
     $line = preg_split('/\s+/',$line,2);
@@ -161,6 +152,57 @@ function confToHash($file,$lower=false) {
   }
 
   return $conf;
+}
+
+/**
+ * Retrieve the requested configuration information
+ *
+ * @author Chris Smith <chris@jalakai.co.uk>
+ *
+ * @param  string   $type     the configuration settings to be read, must correspond to a key/array in $config_cascade
+ * @param  callback $fn       the function used to process the configuration file into an array
+ * @param  array    $param    optional additional params to pass to the callback
+ * @return array    configuration values
+ */
+function retrieveConfig($type,$fn,$params=null) {
+  global $config_cascade;
+
+  if(!is_array($params)) $params = array();
+
+  $combined = array();
+  if (!is_array($config_cascade[$type])) trigger_error('Missing config cascade for "'.$type.'"',E_USER_WARNING);
+  foreach (array('default','local','protected') as $config_group) {
+    if (empty($config_cascade[$type][$config_group])) continue;
+    foreach ($config_cascade[$type][$config_group] as $file) {
+      if (@file_exists($file)) {
+        $config = call_user_func_array($fn,array_merge(array($file),$params));
+        $combined = array_merge($combined, $config);
+      }
+    }
+  }
+
+  return $combined;
+}
+
+/**
+ * Include the requested configuration information
+ *
+ * @author Chris Smith <chris@jalakai.co.uk>
+ *
+ * @param  string   $type     the configuration settings to be read, must correspond to a key/array in $config_cascade
+ * @return array              list of files, default before local before protected
+ */
+function getConfigFiles($type) {
+  global $config_cascade;
+  $files = array();
+
+  if (!is_array($config_cascade[$type])) trigger_error('Missing config cascade for "'.$type.'"',E_USER_WARNING);
+  foreach (array('default','local','protected') as $config_group) {
+    if (empty($config_cascade[$type][$config_group])) continue;
+    $files = array_merge($files, $config_cascade[$type][$config_group]);
+  }
+
+  return $files;
 }
 
 /**
@@ -179,11 +221,75 @@ function actionOK($action){
     $disabled = array_map('trim',$disabled);
     if(isset($conf['openregister']) && !$conf['openregister']) $disabled[] = 'register';
     if(isset($conf['resendpasswd']) && !$conf['resendpasswd']) $disabled[] = 'resendpwd';
+    if(isset($conf['subscribers']) && !$conf['subscribers']) {
+        $disabled[] = 'subscribe';
+        $disabled[] = 'subscribens';
+    }
     $disabled = array_unique($disabled);
   }
 
   return !in_array($action,$disabled);
 }
 
+/**
+ * check if headings should be used as link text for the specified link type
+ *
+ * @author Chris Smith <chris@jalakai.co.uk>
+ *
+ * @param   string  $linktype   'content'|'navigation', content applies to links in wiki text
+ *                                                      navigation applies to all other links
+ * @returns boolean             true if headings should be used for $linktype, false otherwise
+ */
+function useHeading($linktype) {
+  static $useHeading = null;
 
+  if (is_null($useHeading)) {
+    global $conf;
+
+    if (!empty($conf['useheading'])) {
+      switch ($conf['useheading']) {
+        case 'content'    : $useHeading['content'] = true; break;
+        case 'navigation' : $useHeading['navigation'] = true; break;
+        default:
+          $useHeading['content'] = true;
+          $useHeading['navigation'] = true;
+      }
+    } else {
+      $useHeading = array();
+    }
+  }
+
+  return (!empty($useHeading[$linktype]));
+}
+
+/**
+ * obscure config data so information isn't plain text
+ *
+ * @param string       $str     data to be encoded
+ * @param string       $code    encoding method, values: plain, base64, uuencode.
+ * @return string               the encoded value
+ */
+function conf_encodeString($str,$code) {
+  switch ($code) {
+    case 'base64'   : return '<b>'.base64_encode($str);
+    case 'uuencode' : return '<u>'.convert_uuencode($str);
+    case 'plain':
+    default:
+      return $str;
+  }
+}
+/**
+ * return obscured data as plain text
+ *
+ * @param  string      $str   encoded data
+ * @return string             plain text
+ */
+function conf_decodeString($str) {
+  switch (substr($str,0,3)) {
+    case '<b>' : return base64_decode(substr($str,3));
+    case '<u>' : return convert_uudecode(substr($str,3));
+    default:  // not encode (or unknown)
+      return $str;
+  }
+}
 //Setup VIM: ex: et ts=2 enc=utf-8 :

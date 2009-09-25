@@ -4,7 +4,7 @@
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Andreas Gohr <andi@splitbrain.org>
- * @author     Anika Henke <henke@cosmocode.de>
+ * @author     Anika Henke <anika@selfthinker.org>
  * @author     Matthias Grimm <matthiasgrimm@users.sourceforge.net>
  */
 $lang['encoding']   = 'utf-8';
@@ -39,8 +39,10 @@ $lang['btn_delete'] = 'Delete';
 $lang['btn_back']   = 'Back';
 $lang['btn_backlink']    = "Backlinks";
 $lang['btn_backtomedia'] = 'Back to Mediafile Selection';
-$lang['btn_subscribe']   = 'Subscribe Changes';
-$lang['btn_unsubscribe'] = 'Unsubscribe Changes';
+$lang['btn_subscribe']   = 'Subscribe Page Changes';
+$lang['btn_unsubscribe'] = 'Unsubscribe Page Changes';
+$lang['btn_subscribens']   = 'Subscribe Namespace Changes';
+$lang['btn_unsubscribens'] = 'Unsubscribe Namespace Changes';
 $lang['btn_profile']     = 'Update Profile';
 $lang['btn_reset']       = 'Reset';
 $lang['btn_resendpwd']   = 'Send new password';
@@ -55,13 +57,14 @@ $lang['newpass']    = 'New password';
 $lang['oldpass']    = 'Confirm current password';
 $lang['passchk']    = 'once again';
 $lang['remember']   = 'Remember me';
-$lang['fullname']   = 'Full name';
+$lang['fullname']   = 'Real name';
 $lang['email']      = 'E-Mail';
 $lang['register']   = 'Register';
 $lang['profile']    = 'User Profile';
 $lang['badlogin']   = 'Sorry, username or password was wrong.';
 $lang['minoredit']  = 'Minor Changes';
 $lang['draftdate']  = 'Draft autosaved on'; // full dformat date will be added
+$lang['nosecedit']  = 'The page was changed in the meantime, section info was out of date loaded full page instead.';
 
 $lang['regmissing'] = 'Sorry, you must fill in all fields.';
 $lang['reguexists'] = 'Sorry, a user with this login already exists.';
@@ -76,7 +79,7 @@ $lang['reghere']    = 'You don\'t have an account yet? Just get one';
 $lang['profna']       = 'This wiki does not support profile modification';
 $lang['profnochange'] = 'No changes, nothing to do.';
 $lang['profnoempty']  = 'An empty name or email address is not allowed.';
-$lang['profchanged']  = 'User profile sucessfully updated.';
+$lang['profchanged']  = 'User profile successfully updated.';
 
 $lang['pwdforget'] = 'Forgotten your password? Get a new one';
 $lang['resendna']  = 'This wiki does not support password resending.';
@@ -87,6 +90,9 @@ $lang['resendpwdbadauth'] = 'Sorry, this auth code is not valid. Make sure you u
 $lang['resendpwdconfirm'] = 'A confirmation link has been sent by email.';
 $lang['resendpwdsuccess'] = 'Your new password has been sent by email.';
 
+$lang['license']   = 'Except where otherwise noted, content on this wiki is licensed under the following license:';
+$lang['licenseok'] = 'Note: By editing this page you agree to license your content under the following license:';
+
 $lang['txt_upload']   = 'Select file to upload';
 $lang['txt_filename'] = 'Upload as (optional)';
 $lang['txt_overwrt']  = 'Overwrite existing file';
@@ -95,7 +101,7 @@ $lang['lockexpire']   = 'Lock expires at';
 $lang['willexpire']   = 'Your lock for editing this page is about to expire in a minute.\nTo avoid conflicts use the preview button to reset the locktimer.';
 
 $lang['notsavedyet'] = 'Unsaved changes will be lost.\nReally continue?';
-$lang['rssfailed']   = 'An error occured while fetching this feed: ';
+$lang['rssfailed']   = 'An error occurred while fetching this feed: ';
 $lang['nothingfound']= 'Nothing was found.';
 
 $lang['mediaselect'] = 'Media Files';
@@ -107,6 +113,7 @@ $lang['uploadexist'] = 'File already exists. Nothing done.';
 $lang['uploadbadcontent'] = 'The uploaded content did not match the %s file extension.';
 $lang['uploadspam']  = 'The upload was blocked by the spam blacklist.';
 $lang['uploadxss']   = 'The upload was blocked for possibly malicious content.';
+$lang['uploadsize']  = 'The uploaded file was too big. (max. %s)';
 $lang['deletesucc']  = 'The file "%s" has been deleted.';
 $lang['deletefail']  = '"%s" couldn\'t be deleted - check permissions.';
 $lang['mediainuse']  = 'The file "%s" hasn\'t been deleted - it is still in use.';
@@ -130,7 +137,8 @@ $lang['quickhits']  = 'Matching pagenames';
 $lang['toc']        = 'Table of Contents';
 $lang['current']    = 'current';
 $lang['yours']      = 'Your Version';
-$lang['diff']       = 'show differences to current version';
+$lang['diff']       = 'Show differences to current revisions';
+$lang['diff2']      = 'Show differences between selected revisions';
 $lang['line']       = 'Line';
 $lang['breadcrumb'] = 'Trace';
 $lang['youarehere'] = 'You are here';
@@ -141,13 +149,14 @@ $lang['created']    = 'created';
 $lang['restored']   = 'old revision restored';
 $lang['external_edit'] = 'external edit';
 $lang['summary']    = 'Edit summary';
+$lang['noflash']    = 'The <a href="http://www.adobe.com/products/flashplayer/">Adobe Flash Plugin</a> is needed to display this content.';
 
 $lang['mail_newpage']  = 'page added:';
 $lang['mail_changed']  = 'page changed:';
 $lang['mail_new_user'] = 'new user:';
 $lang['mail_upload']   = 'file uploaded:';
 
-$lang['nosmblinks'] = 'Linking to Windows shares only works in Microsoft Internet Explorer.\nYou still can copy and paste the link.';
+$lang['js']['nosmblinks'] = "Linking to Windows shares only works in Microsoft Internet Explorer.\nYou still can copy and paste the link.";
 
 $lang['qb_alert']   = 'Please enter the text you want to format.\nIt will be appended to the end of the document.';
 $lang['qb_bold']    = 'Bold Text';
@@ -172,13 +181,6 @@ $lang['qb_chars']   = 'Special Chars';
 
 $lang['del_confirm']= 'Really delete selected item(s)?';
 $lang['admin_register']= 'Add new user';
-
-$lang['spell_start'] = 'Check Spelling';
-$lang['spell_stop']  = 'Resume Editing';
-$lang['spell_wait']  = 'Please wait...';
-$lang['spell_noerr'] = 'No Mistakes found';
-$lang['spell_nosug'] = 'No Suggestions';
-$lang['spell_change']= 'Change';
 
 $lang['metaedit']    = 'Edit Metadata';
 $lang['metasaveerr'] = 'Writing metadata failed';
@@ -214,7 +216,7 @@ $lang['i_superuser']  = 'Superuser';
 $lang['i_problems']   = 'The installer found some problems, indicated below. You can not continue until you have fixed them.';
 $lang['i_modified']   = 'For security reasons this script will only work with a new and unmodified Dokuwiki installation.
                          You should either re-extract the files from the downloaded package or consult the complete
-                         <a href="http://wiki.splitbrain.org/wiki:install">Dokuwiki installation instructions</a>';
+                         <a href="http://dokuwiki.org/install">Dokuwiki installation instructions</a>';
 $lang['i_funcna']     = 'PHP function <code>%s</code> is not available. Maybe your hosting provider disabled it for some reason?';
 $lang['i_phpver']     = 'Your PHP version <code>%s</code> is lower than the needed <code>%s</code>. You need to upgrade your PHP install.';
 $lang['i_permfail']   = '<code>%s</code> is not writable by DokuWiki. You need to fix the permission settings of this directory!';
@@ -224,7 +226,7 @@ $lang['i_badhash']    = 'unrecognised or modified dokuwiki.php (hash=<code>%s</c
 $lang['i_badval']     = '<code>%s</code> - illegal or empty value';
 $lang['i_success']    = 'The configuration was finished successfully. You may delete the install.php file now. Continue to
                         <a href="doku.php">your new DokuWiki</a>.';
-$lang['i_failure']    = 'Some errors occured while writing the configuration files. You may need to fix them manually before
+$lang['i_failure']    = 'Some errors occurred while writing the configuration files. You may need to fix them manually before
                          you can use <a href="doku.php">your new DokuWiki</a>.';
 $lang['i_policy']     = 'Initial ACL policy';
 $lang['i_pol0']       = 'Open Wiki (read, write, upload for everyone)';
@@ -232,5 +234,22 @@ $lang['i_pol1']       = 'Public Wiki (read for everyone, write and upload for re
 $lang['i_pol2']       = 'Closed Wiki (read, write, upload for registered users only)';
 
 $lang['i_retry']      = 'Retry';
+
+$lang['mu_intro']     = 'Here you can upload multiple files at once. Click the browse button to add them to the queue. Press upload when done.';
+$lang['js']['mu_btn'] = 'Upload multiple files at once';
+$lang['mu_gridname']  = 'Filename';
+$lang['mu_gridsize']  = 'Size';
+$lang['mu_gridstat']  = 'Status';
+$lang['mu_namespace'] = 'Namespace';
+$lang['mu_browse']    = 'Browse';
+$lang['mu_toobig']    = 'too big';
+$lang['mu_ready']     = 'ready for upload';
+$lang['mu_done']      = 'complete';
+$lang['mu_fail']      = 'failed';
+$lang['mu_authfail']  = 'session expired';
+$lang['mu_progress']  = '@PCT@% uploaded';
+$lang['mu_filetypes'] = 'Allowed Filetypes';
+
+$lang['recent_global'] = 'You\'re currently watching the changes inside the <b>%s</b> namespace. You can also <a href="%s">view the recent changes of the whole wiki</a>.';
 
 //Setup VIM: ex: et ts=2 enc=utf-8 :

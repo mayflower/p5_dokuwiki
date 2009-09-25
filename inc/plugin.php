@@ -155,7 +155,7 @@ class DokuWiki_Plugin {
 
     return $conf;
   }
-  
+
   /**
    * Loads a given helper plugin (if enabled)
    *
@@ -163,7 +163,7 @@ class DokuWiki_Plugin {
    *
    * @param   $name   name of plugin to load
    * @param   $msg    message to display in case the plugin is not available
-   * 
+   *
    * @return  object  helper plugin object
    */
   function loadHelper($name, $msg){
@@ -213,6 +213,15 @@ class DokuWiki_Plugin {
    */
   function render($text, $format='xhtml') {
     return p_render($format, p_get_instructions($text),$info);
+  }
+
+  /**
+   * Allow the plugin to prevent DokuWiki creating a second instance of itself
+   *
+   * @return bool   true if the plugin can not be instantiated more than once
+   */
+  function isSingleton() {
+    return false;
   }
 
   // deprecated functions

@@ -23,7 +23,7 @@ require_once(DOKU_PLUGIN.'admin.php');
 
     // plugins that are an integral part of dokuwiki, they shouldn't be disabled or deleted
     global $plugin_protected;
-    $plugin_protected = array('acl','plugin','config','info','usermanager');
+    $plugin_protected = array('acl','plugin','config','info','usermanager','revert');
 
 /**
  * All DokuWiki plugins to extend the admin function
@@ -60,7 +60,7 @@ class admin_plugin_plugin extends DokuWiki_Admin_Plugin {
         'date'   => '2005-08-10',
         'name'   => 'Plugin Manager',
         'desc'   => "Manage Plugins, including automated plugin installer $disabled",
-        'url'    => 'http://wiki.splitbrain.org/plugin:adminplugin',
+        'url'    => 'http://dokuwiki.org/plugin:plugin',
       );
     }
 
@@ -105,13 +105,17 @@ class admin_plugin_plugin extends DokuWiki_Admin_Plugin {
           $this->plugin = null;
       }
 
-      $this->plugin_list = plugin_list('', true);
-      sort($this->plugin_list);
+      $this->_get_plugin_list();
 
       // verify $_REQUEST vars
       if (in_array($this->cmd, $this->commands)) {
         $this->plugin = '';
       } else if (!in_array($this->cmd, $this->functions) || !in_array($this->plugin, $this->plugin_list)) {
+        $this->cmd = 'manage';
+        $this->plugin = '';
+      }
+
+      if(($this->cmd != 'manage' || $this->plugin != '') && !checkSecurityToken()){
         $this->cmd = 'manage';
         $this->plugin = '';
       }
@@ -122,6 +126,7 @@ class admin_plugin_plugin extends DokuWiki_Admin_Plugin {
 
       $this->handler = & new $class($this, $this->plugin);
       $this->msg = $this->handler->process();
+
     }
 
     /**
@@ -133,16 +138,23 @@ class admin_plugin_plugin extends DokuWiki_Admin_Plugin {
 
       // enable direct access to language strings
       $this->setupLocale();
+      $this->_get_plugin_list();
 
       if ($this->handler === NULL) $this->handler = & new ap_manage($this, $this->plugin);
-      if (!$this->plugin_list) {
-        $this->plugin_list = plugin_list('',true);
-        sort($this->plugin_list);
-      }
 
       ptln('<div id="plugin__manager">');
       $this->handler->html();
       ptln('</div><!-- #plugin_manager -->');
+    }
+
+    function _get_plugin_list() {
+      if (empty($this->plugin_list)) {
+        $list = plugin_list('',true);     // all plugins, including disabled ones
+        sort($list);
+        trigger_event('PLUGIN_PLUGINMANAGER_PLUGINLIST',$list);
+        $this->plugin_list = $list;
+      }
+      return $this->plugin_list;
     }
 
 }
@@ -181,6 +193,7 @@ class ap_manage {
           ptln('    <fieldset class="hidden">',4);
           ptln('      <input type="hidden" name="do"   value="admin" />');
           ptln('      <input type="hidden" name="page" value="plugin" />');
+          formSecurityToken();
           ptln('    </fieldset>');
           ptln('    <fieldset>');
           ptln('      <legend>'.$this->lang['download'].'</legend>');
@@ -199,6 +212,7 @@ class ap_manage {
             ptln('  <fieldset class="hidden">');
             ptln('    <input type="hidden" name="do"     value="admin" />');
             ptln('    <input type="hidden" name="page"   value="plugin" />');
+            formSecurityToken();
             ptln('  </fieldset>');
 
             $this->html_pluginlist();
@@ -259,16 +273,23 @@ class ap_manage {
          *  Refresh plugin list
          */
         function refresh() {
+            global $MSG,$config_cascade;
 
-            $this->manager->plugin_list = plugin_list('',true);
-            sort($this->manager->plugin_list);
+            //are there any undisplayed messages? keep them in session for display
+            if (isset($MSG) && count($MSG)){
+                //reopen session, store data and close session again
+                @session_start();
+                $_SESSION[DOKU_COOKIE]['msg'] = $MSG;
+                session_write_close();
+            }
 
             // expire dokuwiki caches
             // touching local.php expires wiki page, JS and CSS caches
-            @touch(DOKU_CONF.'local.php');
+            @touch(reset($config_cascade['main']['local']));
 
             // update latest plugin date - FIXME
-            return (!$this->manager->error);
+            header('Location: '.wl($ID).'?do=admin&page=plugin');
+            exit();
         }
 
         function download($url, $overwrite=false) {
@@ -282,11 +303,9 @@ class ap_manage {
           }
 
           $file = $matches[0];
-          $folder = "p".md5($file.date('r'));     // tmp folder name - will be empty (should really make sure it doesn't already exist)
-          $tmp = DOKU_PLUGIN."tmp/$folder";
 
-          if (!ap_mkdir($tmp)) {
-            $this->manager->error = $this->lang['error_dir_create']."\n";
+          if (!($tmp = io_mktmpdir())) {
+            $this->manager->error = $this->lang['error_dircreate']."\n";
             return false;
           }
 
@@ -298,8 +317,8 @@ class ap_manage {
             $this->manager->error = sprintf($this->lang['error_decompress'],$file)."\n";
           }
 
-          // search tmp/$folder for the folder(s) that has been created
-          // move that folder(s) to lib/plugins/
+          // search $tmp for the folder(s) that has been created
+          // move the folder(s) to lib/plugins/
           if (!$this->manager->error) {
             if ($dh = @opendir("$tmp/")) {
               while (false !== ($f = readdir($dh))) {
@@ -307,18 +326,18 @@ class ap_manage {
                 if (!is_dir("$tmp/$f")) continue;
 
                 // check to make sure we aren't overwriting anything
-                if (!$overwrite && @file_exists(DOKU_PLUGIN."/$f")) {
+                if (!$overwrite && @file_exists(DOKU_PLUGIN.$f)) {
                    // remember our settings, ask the user to confirm overwrite, FIXME
                    continue;
                 }
 
-                $instruction = @file_exists(DOKU_PLUGIN."/$f") ? 'update' : 'install';
+                $instruction = @file_exists(DOKU_PLUGIN.$f) ? 'update' : 'install';
 
                 if (ap_copy("$tmp/$f", DOKU_PLUGIN.$f)) {
                   $this->downloaded[] = $f;
                   $this->plugin_writelog($f, $instruction, array($url));
                 } else {
-                  $this->manager->error .= sprintf($lang['error_copy']."\n", $f);
+                  $this->manager->error .= sprintf($this->lang['error_copy']."\n", $f);
                 }
               }
               closedir($dh);
@@ -328,9 +347,10 @@ class ap_manage {
           }
 
           // cleanup
-          if ($folder && is_dir(DOKU_PLUGIN."tmp/$folder")) ap_delete(DOKU_PLUGIN."tmp/$folder");
+          if ($tmp) ap_delete($tmp);
 
           if (!$this->manager->error) {
+              msg('Plugin package ('.count($this->downloaded).' plugin'.(count($this->downloaded) != 1?'s':'').': '.join(',',$this->downloaded).') successfully installed.',1);
               $this->refresh();
               return true;
           }
@@ -363,7 +383,7 @@ class ap_manage {
 
         function plugin_readlog($plugin, $field) {
             static $log = array();
-            $file = DOKU_PLUGIN.$plugin.'/manager.dat';
+            $file = DOKU_PLUGIN.plugin_directory($plugin).'/manager.dat';
 
             if (!isset($log[$plugin])) {
                 $tmp = @file_get_contents($file);
@@ -375,7 +395,7 @@ class ap_manage {
                 return $log[$plugin];
             }
 
-                        $match = array();
+            $match = array();
             if (preg_match_all('/'.$field.'=(.*)$/m',$log[$plugin], $match))
                 return implode("\n", $match[1]);
 
@@ -424,9 +444,10 @@ class ap_manage {
 
         function process() {
 
-            if (!ap_delete(DOKU_PLUGIN.$this->manager->plugin)) {
+            if (!ap_delete(DOKU_PLUGIN.plugin_directory($this->manager->plugin))) {
               $this->manager->error = sprintf($this->lang['error_delete'],$this->manager->plugin);
             } else {
+              msg("Plugin {$this->manager->plugin} successfully deleted.");
               $this->refresh();
             }
         }
@@ -535,7 +556,7 @@ class ap_manage {
 
         // simple output filter, make html entities safe and convert new lines to <br />
         function out($text) {
-            return str_replace("\n",'<br />',htmlentities($text));
+            return str_replace("\n",'<br />',htmlspecialchars($text));
         }
 
     }
@@ -584,6 +605,7 @@ class ap_manage {
 
       function process() {
         global $plugin_protected;
+        $count_enabled = $count_disabled = 0;
 
         $this->enabled = isset($_REQUEST['enabled']) ? $_REQUEST['enabled'] : array();
 
@@ -596,14 +618,30 @@ class ap_manage {
           if ($new != $old) {
             switch ($new) {
               // enable plugin
-              case true : plugin_enable($plugin); break;
-              case false: plugin_disable($plugin); break;
+              case true :
+                if(plugin_enable($plugin)){
+                    msg(sprintf($this->lang['enabled'],$plugin),1);
+                    $count_enabled++;
+                }else{
+                    msg(sprintf($this->lang['notenabled'],$plugin),-1);
+                }
+                break;
+              case false:
+                if(plugin_disable($plugin)){
+                    msg(sprintf($this->lang['disabled'],$plugin),1);
+                    $count_disabled++;
+                }else{
+                    msg(sprintf($this->lang['notdisabled'],$plugin),-1);
+                }
+                break;
             }
           }
         }
 
         // refresh plugins, including expiring any dokuwiki cache(s)
-        $this->refresh();
+        if ($count_enabled || $count_disabled) {
+          $this->refresh();
+        }
       }
 
     }
@@ -620,6 +658,7 @@ class ap_manage {
 
     // decompress wrapper
     function ap_decompress($file, $target) {
+        global $conf;
 
         // decompression library doesn't like target folders ending in "/"
         if (substr($target, -1) == "/") $target = substr($target, 0, -1);
@@ -635,11 +674,21 @@ class ap_manage {
           else $compress_type = COMPRESS_NONE;
 
           $tar = new TarLib($file, $compress_type);
+          if($tar->_initerror < 0){
+            if($conf['allowdebug']){
+                msg('TarLib Error: '.$tar->TarErrorStr($tar->_initerror),-1);
+            }
+            return false;
+          }
           $ok = $tar->Extract(FULL_ARCHIVE, $target, '', 0777);
 
-          // FIXME sort something out for handling tar error messages meaningfully
-          return ($ok<0?false:true);
-
+          if($ok<1){
+            if($conf['allowdebug']){
+                msg('TarLib Error: '.$tar->TarErrorStr($ok),-1);
+            }
+            return false;
+          }
+          return true;
         } else if ($ext == 'zip') {
 
           require_once(DOKU_INC."inc/ZipLib.class.php");
@@ -659,14 +708,6 @@ class ap_manage {
         return false;
     }
 
-    // possibly should use io_MakeFileDir, not sure about using its method of error handling
-    function ap_mkdir($d) {
-        global $conf;
-
-        $ok = io_mkdir_p($d);
-        return $ok;
-    }
-
     // copy with recursive sub-directory support
     function ap_copy($src, $dst) {
         global $conf;
@@ -674,7 +715,7 @@ class ap_manage {
         if (is_dir($src)) {
           if (!$dh = @opendir($src)) return false;
 
-          if ($ok = ap_mkdir($dst)) {
+          if ($ok = io_mkdir_p($dst)) {
             while ($ok && (false !== ($f = readdir($dh)))) {
               if ($f == '..' || $f == '.') continue;
               $ok = ap_copy("$src/$f", "$dst/$f");
@@ -724,7 +765,7 @@ class ap_manage {
       global $plugin_types;
 
       $components = array();
-      $path = DOKU_PLUGIN.$plugin.'/';
+      $path = DOKU_PLUGIN.plugin_directory($plugin).'/';
 
       foreach ($plugin_types as $type) {
         if (@file_exists($path.$type.'.php')) { $components[] = array('name'=>$plugin, 'type'=>$type); continue; }

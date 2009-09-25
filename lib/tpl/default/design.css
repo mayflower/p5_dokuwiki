@@ -2,7 +2,7 @@
  * Design elements for default Template
  *
  * @author Andreas Gohr <andi@splitbrain.org>
- * @author Anika Henke <henke@cosmocode.de>
+ * @author Anika Henke <anika@selfthinker.org>
  */
 
 /* -------------- general elements --------------- */
@@ -96,7 +96,7 @@ div.dokuwiki textarea.edit {
 
 /* nice alphatransparency background except for IE <7 */
 html>body div.dokuwiki textarea.edit {
-  background:  __background__ url(/addons/dokuwiki/lib/tpl/default/images/inputshadow.png) repeat-x top;
+  background:  __background__ url(images/inputshadow.png) repeat-x top;
 }
 
 div.dokuwiki input.edit,
@@ -171,8 +171,18 @@ div.dokuwiki div#draft__status {
   color: __text_alt__;
 }
 
-/* --------- buttons ------------------- */
+div.dokuwiki div.license {
+  padding: 0.5em;
+  font-size: 90%;
+  text-align: center;
+}
 
+div.dokuwiki form#dw__editform div.license {
+  clear: left;
+  font-size: 90%;
+}
+
+/* --------- buttons ------------------- */
 
 div.dokuwiki input.button,
 div.dokuwiki button.button {
@@ -190,7 +200,7 @@ div.dokuwiki button.button {
 /* nice alphatransparency background except for IE <7 */
 html>body div.dokuwiki input.button,
 html>body div.dokuwiki button.button {
-  background:  __background__ url(/addons/dokuwiki/lib/tpl/default/images/buttonshadow.png) repeat-x bottom;
+  background:  __background__ url(images/buttonshadow.png) repeat-x bottom;
 }
 
 * html div.dokuwiki input.button,
@@ -255,13 +265,13 @@ div.dokuwiki a.nolink {
 
 /* external link */
 div.dokuwiki a.urlextern {
-  background: transparent url(/addons/dokuwiki/lib/tpl/default/images/link_icon.gif) 0px 1px no-repeat;
+  background: transparent url(images/link_icon.gif) 0px 1px no-repeat;
   padding: 1px 0px 1px 16px;
 }
 
 /* windows share */
 div.dokuwiki a.windows {
-  background: transparent url(/addons/dokuwiki/lib/tpl/default/images/windows.gif) 0px 1px no-repeat;
+  background: transparent url(images/windows.gif) 0px 1px no-repeat;
   padding: 1px 0px 1px 16px;
 }
 
@@ -295,7 +305,7 @@ div.dokuwiki a.interwiki:active {
 
 /* email link */
 div.dokuwiki a.mail {
-  background: transparent url(/addons/dokuwiki/lib/tpl/default/images/mail_icon.gif) 0px 1px no-repeat;
+  background: transparent url(images/mail_icon.gif) 0px 1px no-repeat;
   padding: 1px 0px 1px 16px;
 }
 
@@ -405,7 +415,7 @@ div.dokuwiki ul {
   line-height: 1.5em;
   list-style-type: square;
   list-style-image: none;
-  margin: 0 0 0.5em 1.5em;
+  margin: 0 0 1em 3.5em;
   color: __text_alt__;
 }
 
@@ -413,9 +423,17 @@ div.dokuwiki ul {
 div.dokuwiki ol {
   line-height: 1.5em;
   list-style-image: none;
-  margin: 0 0 0.5em 1.5em;
+  margin: 0 0 1em 3.5em;
   color: __text_alt__;
   font-weight: bold;
+}
+
+/* no gap in between nested lists */
+div.dokuwiki li ul {
+  margin-bottom: 0;
+}
+div.dokuwiki li ol {
+  margin-bottom: 0;
 }
 
 /* the list items overriding the ul/ol definition */
@@ -430,12 +448,12 @@ div.dokuwiki ol ol ol {list-style-type: lower-alpha}
 div.dokuwiki ol ol ol ol {list-style-type: lower-greek}
 
 div.dokuwiki li.open {
-  list-style-image: url(/addons/dokuwiki/lib/tpl/default/images/open.gif);
+  list-style-image: url(images/open.gif);
     /*list-style-type: circle;*/
 }
 
 div.dokuwiki li.closed {
-  list-style-image: url(/addons/dokuwiki/lib/tpl/default/images/closed.gif);
+  list-style-image: url(images/closed.gif);
     /*list-style-type: disc;*/
 }
 
@@ -548,7 +566,7 @@ div.dokuwiki ul.toc {
 }
 
 div.dokuwiki ul.toc li {
-  background: transparent url(/addons/dokuwiki/lib/tpl/default/images/tocdot2.gif) 0 0.6em no-repeat;
+  background: transparent url(images/tocdot2.gif) 0 0.6em no-repeat;
   padding-left: 0.4em;
 }
 
@@ -577,10 +595,24 @@ div.dokuwiki td.diff-blockheader {
 }
 div.dokuwiki table.diff th {
   border-bottom: 1px solid __border__;
-  font-size: 120%;
+  font-size: 110%;
   width: 50%;
   font-weight: normal;
   text-align: left;
+}
+div.dokuwiki table.diff th a {
+    font-weight: bold;
+}
+div.dokuwiki table.diff th span.user {
+    color: __text__;
+    font-size: 80%;
+}
+div.dokuwiki table.diff th span.sum {
+    font-size: 80%;
+    font-weight: bold;
+}
+div.dokuwiki table.diff th.minor {
+  font-style: italic;
 }
 div.dokuwiki table.diff td {
   font-family: monospace;
@@ -613,14 +645,7 @@ div.dokuwiki div.fn {
   font-size: 90%;
 }
 
-div.dokuwiki a.fn_top {
-  vertical-align: super;
-  font-size: 80%;
-}
-
 div.dokuwiki a.fn_bot {
-  vertical-align: super;
-  font-size: 80%;
   font-weight: bold;
 }
 
@@ -727,7 +752,7 @@ button.toolbutton {
 
 /* nice alphatransparency background except for IE <7 */
 html>body button.toolbutton {
-  background:  __background__ url(/addons/dokuwiki/lib/tpl/default/images/buttonshadow.png) repeat-x bottom;
+  background:  __background__ url(images/buttonshadow.png) repeat-x bottom;
 }
 
 div.picker {
@@ -743,38 +768,6 @@ button.pickerbutton {
   background-color: transparent;
   font-size: 80%;
   cursor: pointer;
-}
-
-/* ---------- Spellchecking ------------- */
-
-div.dokuwiki a.spell_error {
-  color: #f00;
-  text-decoration: underline;
-}
-
-div.dokuwiki div#spell__suggest {
-  background-color: __background__;
-  padding: 2px;
-  border: 1px solid __text__;
-  font-size: 80%;
-  display: none;
-}
-
-div.dokuwiki div#spell__result {
-  border: 1px solid __border__;
-  color: __text__;
-  font-size: 14px;
-  padding: 3px;
-  background-color: __background_other__;
-  display: none;
-}
-
-div.dokuwiki span.spell_noerr {
-  color: #093;
-}
-
-div.dokuwiki span.spell_wait {
-  color: #06c;
 }
 
 /* ---------------  Image Details  ----------------- */

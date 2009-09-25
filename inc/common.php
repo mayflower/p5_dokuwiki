@@ -6,8 +6,7 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../').'/');
-require_once(DOKU_CONF.'dokuwiki.php');
+if(!defined('DOKU_INC')) die('meh.');
 require_once(DOKU_INC.'inc/io.php');
 require_once(DOKU_INC.'inc/changelog.php');
 require_once(DOKU_INC.'inc/utf8.php');
@@ -21,6 +20,7 @@ require_once(DOKU_INC.'inc/infoutils.php');
 define('RECENTS_SKIP_DELETED',2);
 define('RECENTS_SKIP_MINORS',4);
 define('RECENTS_SKIP_SUBSPACES',8);
+define('RECENTS_MEDIA_CHANGES',16);
 
 /**
  * Wrapper around htmlspecialchars()
@@ -39,8 +39,8 @@ function hsc($string){
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function ptln($string,$intend=0){
-  echo str_repeat(' ', $intend)."$string\n";
+function ptln($string,$indent=0){
+  echo str_repeat(' ', $indent)."$string\n";
 }
 
 /**
@@ -53,6 +53,44 @@ function stripctl($string){
 }
 
 /**
+ * Return a secret token to be used for CSRF attack prevention
+ *
+ * @author  Andreas Gohr <andi@splitbrain.org>
+ * @link    http://en.wikipedia.org/wiki/Cross-site_request_forgery
+ * @link    http://christ1an.blogspot.com/2007/04/preventing-csrf-efficiently.html
+ * @return  string
+ */
+function getSecurityToken(){
+  return md5(auth_cookiesalt().session_id());
+}
+
+/**
+ * Check the secret CSRF token
+ */
+function checkSecurityToken($token=null){
+  if(is_null($token)) $token = $_REQUEST['sectok'];
+  if(getSecurityToken() != $token){
+    msg('Security Token did not match. Possible CSRF attack.',-1);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Print a hidden form field with a secret CSRF token
+ *
+ * @author  Andreas Gohr <andi@splitbrain.org>
+ */
+function formSecurityToken($print=true){
+  $ret = '<div class="no"><input type="hidden" name="sectok" value="'.getSecurityToken().'" /></div>'."\n";
+  if($print){
+    echo $ret;
+  }else{
+    return $ret;
+  }
+}
+
+/**
  * Return info about the current document as associative
  * array.
  *
@@ -61,8 +99,10 @@ function stripctl($string){
 function pageinfo(){
   global $ID;
   global $REV;
+  global $RANGE;
   global $USERINFO;
   global $conf;
+  global $lang;
 
   // include ID & REV not redundant, as some parts of DokuWiki may temporarily change $ID, e.g. p_wiki_xhtml
   // FIXME ... perhaps it would be better to ensure the temporary changes weren't necessary
@@ -70,10 +110,11 @@ function pageinfo(){
   $info['rev'] = $REV;
 
   if($_SERVER['REMOTE_USER']){
-    $info['userinfo']   = $USERINFO;
-    $info['perm']       = auth_quickaclcheck($ID);
-    $info['subscribed'] = is_subscribed($ID,$_SERVER['REMOTE_USER']);
-    $info['client']     = $_SERVER['REMOTE_USER'];
+    $info['userinfo']     = $USERINFO;
+    $info['perm']         = auth_quickaclcheck($ID);
+    $info['subscribed']   = is_subscribed($ID,$_SERVER['REMOTE_USER'],false);
+    $info['subscribedns'] = is_subscribed($ID,$_SERVER['REMOTE_USER'],true);
+    $info['client']       = $_SERVER['REMOTE_USER'];
 
     // set info about manager/admin status
     $info['isadmin']   = false;
@@ -98,15 +139,20 @@ function pageinfo(){
 
   $info['namespace'] = getNS($ID);
   $info['locked']    = checklock($ID);
-  $info['filepath']  = realpath(wikiFN($ID));
+  $info['filepath']  = fullpath(wikiFN($ID));
   $info['exists']    = @file_exists($info['filepath']);
   if($REV){
     //check if current revision was meant
     if($info['exists'] && (@filemtime($info['filepath'])==$REV)){
       $REV = '';
+    }elseif($RANGE){
+      //section editing does not work with old revisions!
+      $REV   = '';
+      $RANGE = '';
+      msg($lang['nosecedit'],0);
     }else{
       //really use old revision
-      $info['filepath'] = realpath(wikiFN($ID,$REV));
+      $info['filepath'] = fullpath(wikiFN($ID,$REV));
       $info['exists']   = @file_exists($info['filepath']);
     }
   }
@@ -169,6 +215,9 @@ function pageinfo(){
     }
   }
 
+  // mobile detection
+  $info['ismobile'] = clientismobile();
+
   return $info;
 }
 
@@ -184,7 +233,7 @@ function buildURLparams($params, $sep='&amp;'){
     if($amp) $url .= $sep;
 
     $url .= $key.'=';
-    $url .= rawurlencode($val);
+    $url .= rawurlencode((string)$val);
     $amp = true;
   }
   return $url;
@@ -197,10 +246,11 @@ function buildURLparams($params, $sep='&amp;'){
  *
  * @author Andreas Gohr
  */
-function buildAttributes($params){
+function buildAttributes($params,$skipempty=false){
   $url = '';
   foreach($params as $key => $val){
     if($key{0} == '_') continue;
+    if($val === '' && $skipempty) continue;
 
     $url .= $key.'="';
     $url .= htmlspecialchars ($val);
@@ -238,9 +288,9 @@ function breadcrumbs(){
 
   // page names
   $name = noNSorNS($ID);
-  if ($conf['useheading']) {
+  if (useHeading('navigation')) {
     // get page title
-    $title = p_get_first_heading($ID);
+    $title = p_get_first_heading($ID,true);
     if ($title) {
       $name = $title;
     }
@@ -318,9 +368,12 @@ function wl($id='',$more='',$abs=false,$sep='&amp;'){
   }elseif($conf['userewrite']){
     $xlink .= $id;
     if($more) $xlink .= '?'.$more;
-  }else{
-    $xlink .= DOKU_SCRIPT.'&id='.$id;
+  }elseif($id){
+    $xlink .= DOKU_SCRIPT.'?id='.$id;
     if($more) $xlink .= $sep.$more;
+  }else{
+    $xlink .= DOKU_SCRIPT;
+    if($more) $xlink .= '?'.$more;
   }
 
   return $xlink;
@@ -356,7 +409,7 @@ function exportlink($id='',$format='raw',$more='',$abs=false,$sep='&amp;'){
     $xlink .= '_export/'.$format.'/'.$id;
     if($more) $xlink .= '?'.$more;
   }else{
-    $xlink .= DOKU_SCRIPT.'&do=export_'.$format.$sep.'id='.$id;
+    $xlink .= DOKU_SCRIPT.'?do=export_'.$format.$sep.'id='.$id;
     if($more) $xlink .= $sep.$more;
   }
 
@@ -367,19 +420,35 @@ function exportlink($id='',$format='raw',$more='',$abs=false,$sep='&amp;'){
  * Build a link to a media file
  *
  * Will return a link to the detail page if $direct is false
+ *
+ * The $more parameter should always be given as array, the function then
+ * will strip default parameters to produce even cleaner URLs
+ *
+ * @param string  $id     - the media file id or URL
+ * @param mixed   $more   - string or array with additional parameters
+ * @param boolean $direct - link to detail page if false
+ * @param string  $sep    - URL parameter separator
+ * @param boolean $abs    - Create an absolute URL
  */
 function ml($id='',$more='',$direct=true,$sep='&amp;',$abs=false){
   global $conf;
   if(is_array($more)){
+    // strip defaults for shorter URLs
+    if(isset($more['cache']) && $more['cache'] == 'cache') unset($more['cache']);
+    if(!$more['w']) unset($more['w']);
+    if(!$more['h']) unset($more['h']);
+    if(isset($more['id']) && $direct) unset($more['id']);
     $more = buildURLparams($more,$sep);
   }else{
+    $more = str_replace('cache=cache','',$more); //skip default
+    $more = str_replace(',,',',',$more);
     $more = str_replace(',',$sep,$more);
   }
 
   if($abs){
     $xlink = DOKU_URL;
   }else{
-    $xlink = DOKU_BASE.basename(DOKU_INC).'/';
+    $xlink = DOKU_BASE;
   }
 
   // external URLs are always direct without rewriting
@@ -389,7 +458,7 @@ function ml($id='',$more='',$direct=true,$sep='&amp;',$abs=false){
       $xlink .= '?'.$more;
       $xlink .= $sep.'media='.rawurlencode($id);
     }else{
-      $xlink .= '&media='.rawurlencode($id);
+      $xlink .= '?media='.rawurlencode($id);
     }
     return $xlink;
   }
@@ -448,11 +517,26 @@ function script($script='doku.php'){
  * Checks the wikitext against a list of blocked expressions
  * returns true if the text contains any bad words
  *
+ * Triggers COMMON_WORDBLOCK_BLOCKED
+ *
+ *  Action Plugins can use this event to inspect the blocked data
+ *  and gain information about the user who was blocked.
+ *
+ *  Event data:
+ *    data['matches']  - array of matches
+ *    data['userinfo'] - information about the blocked user
+ *      [ip]           - ip address
+ *      [user]         - username (if logged in)
+ *      [mail]         - mail address (if logged in)
+ *      [name]         - real name (if logged in)
+ *
  * @author Andreas Gohr <andi@splitbrain.org>
+ * Michael Klier <chi@chimeric.de>
  */
 function checkwordblock(){
   global $TEXT;
   global $conf;
+  global $INFO;
 
   if(!$conf['usewordblock']) return false;
 
@@ -480,8 +564,17 @@ function checkwordblock(){
       if(empty($block)) continue;
       $re[]  = $block;
     }
-    if(preg_match('#('.join('|',$re).')#si',$text)) {
-      return true;
+    if(count($re) && preg_match('#('.join('|',$re).')#si',$text,$matches)) {
+      //prepare event data
+      $data['matches'] = $matches;
+      $data['userinfo']['ip'] = $_SERVER['REMOTE_ADDR'];
+      if($_SERVER['REMOTE_USER']) {
+          $data['userinfo']['user'] = $_SERVER['REMOTE_USER'];
+          $data['userinfo']['name'] = $INFO['userinfo']['name'];
+          $data['userinfo']['mail'] = $INFO['userinfo']['mail'];
+      }
+      $callback = create_function('', 'return true;');
+      return trigger_event('COMMON_WORDBLOCK_BLOCKED', $data, $callback, true); 
     }
   }
   return false;
@@ -508,11 +601,31 @@ function clientIP($single=false){
   if(!empty($_SERVER['HTTP_X_REAL_IP']))
     $ip = array_merge($ip,explode(',',$_SERVER['HTTP_X_REAL_IP']));
 
+  // some IPv4/v6 regexps borrowed from Feyd
+  // see: http://forums.devnetwork.net/viewtopic.php?f=38&t=53479
+  $dec_octet = '(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|[0-9])';
+  $hex_digit = '[A-Fa-f0-9]';
+  $h16 = "{$hex_digit}{1,4}";
+  $IPv4Address = "$dec_octet\\.$dec_octet\\.$dec_octet\\.$dec_octet";
+  $ls32 = "(?:$h16:$h16|$IPv4Address)";
+  $IPv6Address =
+    "(?:(?:{$IPv4Address})|(?:".
+    "(?:$h16:){6}$ls32" .
+    "|::(?:$h16:){5}$ls32" .
+    "|(?:$h16)?::(?:$h16:){4}$ls32" .
+    "|(?:(?:$h16:){0,1}$h16)?::(?:$h16:){3}$ls32" .
+    "|(?:(?:$h16:){0,2}$h16)?::(?:$h16:){2}$ls32" .
+    "|(?:(?:$h16:){0,3}$h16)?::(?:$h16:){1}$ls32" .
+    "|(?:(?:$h16:){0,4}$h16)?::$ls32" .
+    "|(?:(?:$h16:){0,5}$h16)?::$h16" .
+    "|(?:(?:$h16:){0,6}$h16)?::" .
+    ")(?:\\/(?:12[0-8]|1[0-1][0-9]|[1-9][0-9]|[0-9]))?)";
+
   // remove any non-IP stuff
   $cnt = count($ip);
   $match = array();
   for($i=0; $i<$cnt; $i++){
-    if(preg_match('/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/',$ip[$i],$match)) {
+    if(preg_match("/^$IPv4Address$/",$ip[$i],$match) || preg_match("/^$IPv6Address$/",$ip[$i],$match)) {
       $ip[$i] = $match[0];
     } else {
       $ip[$i] = '';
@@ -535,6 +648,49 @@ function clientIP($single=false){
   }
   // still here? just use the first (last) address
   return $ip[0];
+}
+
+/**
+ * Check if the browser is on a mobile device
+ *
+ * Adapted from the example code at url below
+ *
+ * @link http://www.brainhandles.com/2007/10/15/detecting-mobile-browsers/#code
+ */
+function clientismobile(){
+
+    if(isset($_SERVER['HTTP_X_WAP_PROFILE'])) return true;
+
+    if(preg_match('/wap\.|\.wap/i',$_SERVER['HTTP_ACCEPT'])) return true;
+
+    if(!isset($_SERVER['HTTP_USER_AGENT'])) return false;
+
+    $uamatches = 'midp|j2me|avantg|docomo|novarra|palmos|palmsource|240x320|opwv|chtml|pda|windows ce|mmp\/|blackberry|mib\/|symbian|wireless|nokia|hand|mobi|phone|cdm|up\.b|audio|SIE\-|SEC\-|samsung|HTC|mot\-|mitsu|sagem|sony|alcatel|lg|erics|vx|NEC|philips|mmm|xx|panasonic|sharp|wap|sch|rover|pocket|benq|java|pt|pg|vox|amoi|bird|compal|kg|voda|sany|kdd|dbt|sendo|sgh|gradi|jb|\d\d\di|moto';
+
+    if(preg_match("/$uamatches/i",$_SERVER['HTTP_USER_AGENT'])) return true;
+
+    return false;
+}
+
+
+/**
+ * Convert one or more comma separated IPs to hostnames
+ *
+ * @author Glen Harris <astfgl@iamnota.org>
+ * @returns a comma separated list of hostnames
+ */
+function gethostsbyaddrs($ips){
+  $hosts = array();
+  $ips = explode(',',$ips);
+
+  if(is_array($ips)) {
+    foreach($ips as $ip){
+      $hosts[] = gethostbyaddr(trim($ip));
+    }
+    return join(',',$hosts);
+  } else {
+    return gethostbyaddr(trim($ips));
+  }
 }
 
 /**
@@ -649,14 +805,62 @@ function pageTemplate($data){
   $id = $data[0];
   global $conf;
   global $INFO;
-  $tpl = io_readFile(dirname(wikiFN($id)).'/_template.txt');
-  $tpl = str_replace('@ID@',$id,$tpl);
-  $tpl = str_replace('@NS@',getNS($id),$tpl);
-  $tpl = str_replace('@PAGE@',strtr(noNS($id),'_',' '),$tpl);
-  $tpl = str_replace('@USER@',$_SERVER['REMOTE_USER'],$tpl);
-  $tpl = str_replace('@NAME@',$INFO['userinfo']['name'],$tpl);
-  $tpl = str_replace('@MAIL@',$INFO['userinfo']['mail'],$tpl);
-  $tpl = str_replace('@DATE@',date($conf['dformat']),$tpl);
+
+  $path = dirname(wikiFN($id));
+
+  if(@file_exists($path.'/_template.txt')){
+    $tpl = io_readFile($path.'/_template.txt');
+  }else{
+    // search upper namespaces for templates
+    $len = strlen(rtrim($conf['datadir'],'/'));
+    while (strlen($path) >= $len){
+      if(@file_exists($path.'/__template.txt')){
+        $tpl = io_readFile($path.'/__template.txt');
+        break;
+      }
+      $path = substr($path, 0, strrpos($path, '/'));
+    }
+  }
+  if(!$tpl) return '';
+
+  // replace placeholders
+  $file = noNS($id);
+  $page = strtr($file,'_',' ');
+
+  $tpl = str_replace(array(
+                        '@ID@',
+                        '@NS@',
+                        '@FILE@',
+                        '@!FILE@',
+                        '@!FILE!@',
+                        '@PAGE@',
+                        '@!PAGE@',
+                        '@!!PAGE@',
+                        '@!PAGE!@',
+                        '@USER@',
+                        '@NAME@',
+                        '@MAIL@',
+                        '@DATE@',
+                     ),
+                     array(
+                        $id,
+                        getNS($id),
+                        $file,
+                        utf8_ucfirst($file),
+                        utf8_strtoupper($file),
+                        $page,
+                        utf8_ucfirst($page),
+                        utf8_ucwords($page),
+                        utf8_strtoupper($page),
+                        $_SERVER['REMOTE_USER'],
+                        $INFO['userinfo']['name'],
+                        $INFO['userinfo']['mail'],
+                        $conf['dformat'],
+                     ), $tpl);
+
+  // we need the callback to work around strftime's char limit
+  $tpl = preg_replace_callback('/%./',create_function('$m','return strftime($m[0]);'),$tpl);
+
   return $tpl;
 }
 
@@ -700,7 +904,8 @@ function con($pre,$text,$suf,$pretty=false){
     if($suf && substr($text,-1) != "\n") $text .= "\n";
   }
 
-  if($pre) $pre .= "\n";
+  // Avoid double newline above section when saving section edit
+  //if($pre) $pre .= "\n";
   if($suf) $text .= "\n";
   return $pre.$text.$suf;
 }
@@ -748,6 +953,9 @@ function saveWikiText($id,$text,$summary,$minor=false){
   }
 
   if ($wasRemoved){
+    // Send "update" event with empty data, so plugins can react to page deletion
+    $data = array(array($file, '', false), getNS($id), noNS($id), false);
+    trigger_event('IO_WIKIPAGE_WRITE', $data);
     // pre-save deleted revision
     @touch($file);
     clearstatcache();
@@ -757,10 +965,13 @@ function saveWikiText($id,$text,$summary,$minor=false){
     // remove old meta info...
     $mfiles = metaFiles($id);
     $changelog = metaFN($id, '.changes');
+    $metadata  = metaFN($id, '.meta');
     foreach ($mfiles as $mfile) {
-      // but keep per-page changelog to preserve page history
-      if (@file_exists($mfile) && $mfile!==$changelog) { @unlink($mfile); }
+      // but keep per-page changelog to preserve page history and keep meta data
+      if (@file_exists($mfile) && $mfile!==$changelog && $mfile!==$metadata) { @unlink($mfile); }
     }
+    // purge meta data
+    p_purge_metadata($id);
     $del = true;
     // autoset summary on deletion
     if(empty($summary)) $summary = $lang['deleted'];
@@ -793,6 +1004,16 @@ function saveWikiText($id,$text,$summary,$minor=false){
 
   // update the purgefile (timestamp of the last time anything within the wiki was changed)
   io_saveFile($conf['cachedir'].'/purgefile',time());
+
+  // if useheading is enabled, purge the cache of all linking pages
+  if(useHeading('content')){
+    require_once(DOKU_INC.'inc/fulltext.php');
+    $pages = ft_backlinks($id);
+    foreach ($pages as $page) {
+      $cache = new cache_renderer($page, wikiFN($page), 'xhtml');
+      $cache->removeCache();
+    }
+  }
 }
 
 /**
@@ -837,7 +1058,7 @@ function notify($id,$who,$rev='',$summary='',$minor=false,$replace=array()){
   }elseif($who == 'subscribers'){
     if(!$conf['subscribers']) return; //subscribers enabled?
     if($conf['useacl'] && $_SERVER['REMOTE_USER'] && $minor) return; //skip minors
-    $bcc  = subscriber_addresslist($id);
+    $bcc  = subscriber_addresslist($id,false);
     if(empty($bcc)) return;
     $to   = '';
     $text = rawLocale('subscribermail');
@@ -850,10 +1071,11 @@ function notify($id,$who,$rev='',$summary='',$minor=false,$replace=array()){
     return; //just to be safe
   }
 
-  $text = str_replace('@DATE@',date($conf['dformat']),$text);
+  $ip   = clientIP();
+  $text = str_replace('@DATE@',strftime($conf['dformat']),$text);
   $text = str_replace('@BROWSER@',$_SERVER['HTTP_USER_AGENT'],$text);
-  $text = str_replace('@IPADDRESS@',$_SERVER['REMOTE_ADDR'],$text);
-  $text = str_replace('@HOSTNAME@',gethostbyaddr($_SERVER['REMOTE_ADDR']),$text);
+  $text = str_replace('@IPADDRESS@',$ip,$text);
+  $text = str_replace('@HOSTNAME@',gethostsbyaddrs($ip),$text);
   $text = str_replace('@NEWPAGE@',wl($id,'',true,'&'),$text);
   $text = str_replace('@PAGE@',$id,$text);
   $text = str_replace('@TITLE@',$conf['title'],$text);
@@ -892,20 +1114,29 @@ function notify($id,$who,$rev='',$summary='',$minor=false,$replace=array()){
 }
 
 /**
- * extracts the query from a google referer
+ * extracts the query from a search engine referrer
  *
- * @todo   should be more generic and support yahoo et al
  * @author Andreas Gohr <andi@splitbrain.org>
+ * @author Todd Augsburger <todd@rollerorgans.com>
  */
 function getGoogleQuery(){
   $url = parse_url($_SERVER['HTTP_REFERER']);
   if(!$url) return '';
 
-  if(!preg_match("#google\.#i",$url['host'])) return '';
   $query = array();
   parse_str($url['query'],$query);
+  if(isset($query['q']))
+    $q = $query['q'];        // google, live/msn, aol, ask, altavista, alltheweb, gigablast
+  elseif(isset($query['p']))
+    $q = $query['p'];        // yahoo
+  elseif(isset($query['query']))
+    $q = $query['query'];    // lycos, netscape, clusty, hotbot
+  elseif(preg_match("#a9\.com#i",$url['host'])) // a9
+    $q = urldecode(ltrim($url['path'],'/'));
 
-  return $query['q'];
+  if(!$q) return '';
+  $q = preg_split('/[\s\'"\\\\`()\]\[?:!\.{};,#+*<>\\/]+/',$q,-1,PREG_SPLIT_NO_EMPTY);
+  return $q;
 }
 
 /**
@@ -977,12 +1208,20 @@ function obfuscate($email) {
 }
 
 /**
- * Let us know if a user is tracking a page
+ * Let us know if a user is tracking a page or a namespace
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function is_subscribed($id,$uid){
-  $file=metaFN($id,'.mlist');
+function is_subscribed($id,$uid,$ns=false){
+  if(!$ns) {
+    $file=metaFN($id,'.mlist');
+  } else {
+    if(!getNS($id)) {
+      $file = metaFN(getNS($id),'.mlist');
+    } else {
+      $file = metaFN(getNS($id),'/.mlist');
+    }
+  }
   if (@file_exists($file)) {
     $mlist = file($file);
     $pos = array_search($uid."\n",$mlist);
@@ -998,37 +1237,65 @@ function is_subscribed($id,$uid){
  *
  * @author Steven Danz <steven-danz@kc.rr.com>
  */
-function subscriber_addresslist($id){
+function subscriber_addresslist($id,$self=true){
   global $conf;
   global $auth;
 
-  $emails = '';
+  if (!$conf['subscribers']) return '';
 
-  if (!$conf['subscribers']) return;
+  $users = array();
+  $emails = array();
 
+  // load the page mlist file content
   $mlist = array();
   $file=metaFN($id,'.mlist');
   if (@file_exists($file)) {
     $mlist = file($file);
-  }
-  if(count($mlist) > 0) {
     foreach ($mlist as $who) {
       $who = rtrim($who);
+      if(!$self && $who == $_SERVER['REMOTE_USER']) continue;
+      $users[$who] = true;
+    }
+  }
+
+  // load also the namespace mlist file content
+  $ns = getNS($id);
+  while ($ns) {
+    $nsfile = metaFN($ns,'/.mlist');
+    if (@file_exists($nsfile)) {
+      $mlist = file($nsfile);
+      foreach ($mlist as $who) {
+        $who = rtrim($who);
+        if(!$self && $who == $_SERVER['REMOTE_USER']) continue;
+        $users[$who] = true;
+      }
+    }
+    $ns = getNS($ns);
+  }
+  // root namespace
+  $nsfile = metaFN('','.mlist');
+  if (@file_exists($nsfile)) {
+    $mlist = file($nsfile);
+    foreach ($mlist as $who) {
+      $who = rtrim($who);
+      if(!$self && $who == $_SERVER['REMOTE_USER']) continue;
+      $users[$who] = true;
+    }
+  }
+  if(!empty($users)) {
+    foreach (array_keys($users) as $who) {
       $info = $auth->getUserData($who);
+      if($info === false) continue;
       $level = auth_aclcheck($id,$who,$info['grps']);
       if ($level >= AUTH_READ) {
         if (strcasecmp($info['mail'],$conf['notify']) != 0) {
-          if (empty($emails)) {
-            $emails = $info['mail'];
-          } else {
-            $emails = "$emails,".$info['mail'];
-          }
+          $emails[] = $info['mail'];
         }
       }
     }
   }
 
-  return $emails;
+  return implode(',',$emails);
 }
 
 /**
@@ -1038,6 +1305,177 @@ function subscriber_addresslist($id){
  */
 function unslash($string,$char="'"){
   return str_replace('\\'.$char,$char,$string);
+}
+
+/**
+ * Convert php.ini shorthands to byte
+ *
+ * @author <gilthans dot NO dot SPAM at gmail dot com>
+ * @link   http://de3.php.net/manual/en/ini.core.php#79564
+ */
+function php_to_byte($v){
+    $l = substr($v, -1);
+    $ret = substr($v, 0, -1);
+    switch(strtoupper($l)){
+        case 'P':
+            $ret *= 1024;
+        case 'T':
+            $ret *= 1024;
+        case 'G':
+            $ret *= 1024;
+        case 'M':
+            $ret *= 1024;
+        case 'K':
+            $ret *= 1024;
+        break;
+    }
+    return $ret;
+}
+
+/**
+ * Wrapper around preg_quote adding the default delimiter
+ */
+function preg_quote_cb($string){
+    return preg_quote($string,'/');
+}
+
+/**
+ * Shorten a given string by removing data from the middle
+ *
+ * You can give the string in two parts, teh first part $keep
+ * will never be shortened. The second part $short will be cut
+ * in the middle to shorten but only if at least $min chars are
+ * left to display it. Otherwise it will be left off.
+ *
+ * @param string $keep   the part to keep
+ * @param string $short  the part to shorten
+ * @param int    $max    maximum chars you want for the whole string
+ * @param int    $min    minimum number of chars to have left for middle shortening
+ * @param string $char   the shortening character to use
+ */
+function shorten($keep,$short,$max,$min=9,$char='⌇'){
+    $max = $max - utf8_strlen($keep);
+   if($max < $min) return $keep;
+    $len = utf8_strlen($short);
+    if($len <= $max) return $keep.$short;
+    $half = floor($max/2);
+    return $keep.utf8_substr($short,0,$half-1).$char.utf8_substr($short,$len-$half);
+}
+
+/**
+ * Return the users realname or e-mail address for use
+ * in page footer and recent changes pages
+ *
+ * @author Andy Webber <dokuwiki AT andywebber DOT com>
+ */
+function editorinfo($username){
+    global $conf;
+    global $auth;
+
+    switch($conf['showuseras']){
+      case 'username':
+      case 'email':
+      case 'email_link':
+        $info = $auth->getUserData($username);
+        break;
+      default:
+        return hsc($username);
+    }
+
+    if(isset($info) && $info) {
+        switch($conf['showuseras']){
+          case 'username':
+            return hsc($info['name']);
+          case 'email':
+            return obfuscate($info['mail']);
+          case 'email_link':
+            $mail=obfuscate($info['mail']);
+            return '<a href="mailto:'.$mail.'">'.$mail.'</a>';
+          default:
+            return hsc($username);
+        }
+    } else {
+        return hsc($username);
+    }
+}
+
+/**
+ * Returns the path to a image file for the currently chosen license.
+ * When no image exists, returns an empty string
+ *
+ * @author Andreas Gohr <andi@splitbrain.org>
+ * @param  string $type - type of image 'badge' or 'button'
+ */
+function license_img($type){
+    global $license;
+    global $conf;
+    if(!$conf['license']) return '';
+    if(!is_array($license[$conf['license']])) return '';
+    $lic = $license[$conf['license']];
+    $try = array();
+    $try[] = 'lib/images/license/'.$type.'/'.$conf['license'].'.png';
+    $try[] = 'lib/images/license/'.$type.'/'.$conf['license'].'.gif';
+    if(substr($conf['license'],0,3) == 'cc-'){
+        $try[] = 'lib/images/license/'.$type.'/cc.png';
+    }
+    foreach($try as $src){
+        if(@file_exists(DOKU_INC.$src)) return $src;
+    }
+    return '';
+}
+
+/**
+ * Checks if the given amount of memory is available
+ *
+ * If the memory_get_usage() function is not available the
+ * function just assumes $bytes of already allocated memory
+ *
+ * @param  int $mem  Size of memory you want to allocate in bytes
+ * @param  int $used already allocated memory (see above)
+ * @author Filip Oscadal <webmaster@illusionsoftworks.cz>
+ * @author Andreas Gohr <andi@splitbrain.org>
+ */
+function is_mem_available($mem,$bytes=1048576){
+  $limit = trim(ini_get('memory_limit'));
+  if(empty($limit)) return true; // no limit set!
+
+  // parse limit to bytes
+  $limit = php_to_byte($limit);
+
+  // get used memory if possible
+  if(function_exists('memory_get_usage')){
+    $used = memory_get_usage();
+  }
+
+  if($used+$mem > $limit){
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Send a HTTP redirect to the browser
+ *
+ * Works arround Microsoft IIS cookie sending bug. Exits the script.
+ *
+ * @link   http://support.microsoft.com/kb/q176113/
+ * @author Andreas Gohr <andi@splitbrain.org>
+ */
+function send_redirect($url){
+    // always close the session
+    session_write_close();
+
+    // check if running on IIS < 6 with CGI-PHP
+    if( isset($_SERVER['SERVER_SOFTWARE']) && isset($_SERVER['GATEWAY_INTERFACE']) &&
+        (strpos($_SERVER['GATEWAY_INTERFACE'],'CGI') !== false) &&
+        (preg_match('|^Microsoft-IIS/(\d)\.\d$|', trim($_SERVER['SERVER_SOFTWARE']), $matches)) &&
+        $matches[1] < 6 ){
+        header('Refresh: 0;url='.$url);
+    }else{
+        header('Location: '.$url);
+    }
+    exit;
 }
 
 //Setup VIM: ex: et ts=2 enc=utf-8 :

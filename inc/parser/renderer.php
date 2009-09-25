@@ -5,8 +5,7 @@
  * @author Harry Fuecks <hfuecks@gmail.com>
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../').'/');
-
+if(!defined('DOKU_INC')) die('meh.');
 require_once DOKU_INC . 'inc/parser/renderer.php';
 require_once DOKU_INC . 'inc/plugin.php';
 require_once DOKU_INC . 'inc/pluginutils.php';
@@ -28,6 +27,10 @@ class Doku_Renderer extends DokuWiki_Plugin {
     var $badwords = array();
     var $entities = array();
     var $interwiki = array();
+
+    // allows renderer to be used again, clean out any per-use values
+    function reset() {
+    }
 
     function nocache() {
         $this->info['cache'] = false;
@@ -150,7 +153,11 @@ class Doku_Renderer extends DokuWiki_Plugin {
 
     function php($text) {}
 
+    function phpblock($text) {}
+
     function html($text) {}
+
+    function htmlblock($text) {}
 
     function preformatted($text) {}
 
@@ -193,6 +200,8 @@ class Doku_Renderer extends DokuWiki_Plugin {
 
     // $link is full URL with scheme, $title could be an array (media)
     function externallink($link, $title = NULL) {}
+
+    function rss ($url,$params) {}
 
     // $link is the original link - probably not much use
     // $wikiName is an indentifier for the wiki

@@ -6,13 +6,32 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-  if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../').'/');
-  require_once(DOKU_INC.'inc/utf8.php');
+if(!defined('DOKU_INC')) die('meh.');
+require_once(DOKU_INC.'inc/utf8.php');
+require_once(DOKU_INC.'inc/EmailAddressValidator.php');
 
-  // end of line for mail lines - RFC822 says CRLF but postfix (and other MTAs?)
-  // think different
-  if(!defined('MAILHEADER_EOL')) define('MAILHEADER_EOL',"\n");
-  #define('MAILHEADER_ASCIIONLY',1);
+// end of line for mail lines - RFC822 says CRLF but postfix (and other MTAs?)
+// think different
+if(!defined('MAILHEADER_EOL')) define('MAILHEADER_EOL',"\n");
+#define('MAILHEADER_ASCIIONLY',1);
+
+/**
+ * Patterns for use in email detection and validation
+ *
+ * NOTE: there is an unquoted '/' in RFC2822_ATEXT, it must remain unquoted to be used in the parser
+ * the pattern uses non-capturing groups as captured groups aren't allowed in the parser
+ * select pattern delimiters with care!
+ *
+ * May not be completly RFC conform!
+ * @link http://www.faqs.org/rfcs/rfc2822.html (paras 3.4.1 & 3.2.4)
+ *
+ * @author Chris Smith <chris@jalakai.co.uk>
+ * Check if a given mail address is valid
+*/
+if (!defined('RFC2822_ATEXT')) define('RFC2822_ATEXT',"0-9a-zA-Z!#$%&'*+/=?^_`{|}~-");
+if (!defined('PREG_PATTERN_VALID_EMAIL')) define('PREG_PATTERN_VALID_EMAIL', '['.RFC2822_ATEXT.']+(?:\.['.RFC2822_ATEXT.']+)*@(?i:[0-9a-z][0-9a-z-]*\.)+(?i:[a-z]{2,4}|museum|travel)');
+
+
 
 /**
  * UTF-8 autoencoding replacement for PHPs mail function
@@ -34,6 +53,27 @@
  * @see    mail()
  */
 function mail_send($to, $subject, $body, $from='', $cc='', $bcc='', $headers=null, $params=null){
+
+  $message = compact('to','subject','body','from','cc','bcc','headers','params');
+  return trigger_event('MAIL_MESSAGE_SEND',$message,'_mail_send_action');
+}
+
+function _mail_send_action($data) {
+
+  // retrieve parameters from event data, $to, $subject, $body, $from, $cc, $bcc, $headers, $params
+  $to = $data['to'];
+  $subject = $data['subject'];
+  $body = $data['body'];
+
+  // add robustness in case plugin removes any of these optional values
+  $from = isset($data['from']) ? $data['from'] : '';
+  $cc = isset($data['cc']) ? $data['cc'] : '';
+  $bcc = isset($data['bcc']) ? $data['bcc'] : '';
+  $headers = isset($data['headers']) ? $data['headers'] : null;
+  $params = isset($data['params']) ? $data['params'] : null;
+
+  // end additional code to support event ... original mail_send() code from here
+
   if(defined('MAILHEADER_ASCIIONLY')){
     $subject = utf8_deaccent($subject);
     $subject = utf8_strip($subject);
@@ -130,8 +170,11 @@ function mail_encode_address($string,$header='',$names=true){
       $text = '';
     }
 
-    // add to header comma seperated and in new line to avoid too long headers
-    if($headers != '') $headers .= ','.MAILHEADER_EOL.' ';
+    // add to header comma seperated
+    if($headers != ''){
+        $headers .= ',';
+        if($header) $headers .= MAILHEADER_EOL.' '; // avoid overlong mail headers
+    }
     $headers .= $text.' '.$addr;
   }
 
@@ -144,26 +187,14 @@ function mail_encode_address($string,$header='',$names=true){
 }
 
 /**
- * Uses a regular expresion to check if a given mail address is valid
- *
- * May not be completly RFC conform!
- * @link    http://www.faqs.org/rfcs/rfc2822.html    (paras 3.4.1 & 3.2.4)
- *
- * @author  Chris Smith <chris@jalakai.co.uk>
+ * Check if a given mail address is valid
  *
  * @param   string $email the address to check
  * @return  bool          true if address is valid
  */
-
-// patterns for use in email detection and validation
-// NOTE: there is an unquoted '/' in RFC2822_ATEXT, it must remain unquoted to be used in the parser
-//       the pattern uses non-capturing groups as captured groups aren't allowed in the parser
-//       select pattern delimiters with care!
-if (!defined('RFC2822_ATEXT')) define('RFC2822_ATEXT',"0-9A-Za-z!#$%&'*+/=?^_`{|}~-");
-if (!defined('PREG_PATTERN_VALID_EMAIL')) define('PREG_PATTERN_VALID_EMAIL', '['.RFC2822_ATEXT.']+(?:\.['.RFC2822_ATEXT.']+)*@(?:[0-9A-Za-z][0-9A-Za-z-]*\.)+[A-Za-z]{2,4}');
-
 function mail_isvalid($email){
-  return preg_match('<^'.PREG_PATTERN_VALID_EMAIL.'$>', $email);
+    $validator = new EmailAddressValidator;
+    return $validator->check_email_address($email);
 }
 
 /**

@@ -9,7 +9,7 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-  if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../').'/');
+  if(!defined('DOKU_INC')) die('meh.');
   require_once(DOKU_INC.'inc/common.php');
   require_once(DOKU_INC.'inc/io.php');
 
@@ -58,18 +58,30 @@
       if (!isset($_REQUEST['u'])) $_REQUEST['u'] = '';
       if (!isset($_REQUEST['p'])) $_REQUEST['p'] = '';
       if (!isset($_REQUEST['r'])) $_REQUEST['r'] = '';
+      $_REQUEST['http_credentials'] = false;
+      if (!$conf['rememberme']) $_REQUEST['r'] = false;
+
+      // streamline HTTP auth credentials (IIS/rewrite -> mod_php)
+      if(isset($_SERVER['HTTP_AUTHORIZATION'])){
+        list($_SERVER['PHP_AUTH_USER'],$_SERVER['PHP_AUTH_PW']) =
+          explode(':', base64_decode(substr($_SERVER['HTTP_AUTHORIZATION'], 6)));
+      }
 
       // if no credentials were given try to use HTTP auth (for SSO)
       if(empty($_REQUEST['u']) && empty($_COOKIE[DOKU_COOKIE]) && !empty($_SERVER['PHP_AUTH_USER'])){
         $_REQUEST['u'] = $_SERVER['PHP_AUTH_USER'];
         $_REQUEST['p'] = $_SERVER['PHP_AUTH_PW'];
+        $_REQUEST['http_credentials'] = true;
       }
 
-      // external trust mechanism in place?
-      if(!is_null($auth) && $auth->canDo('external')){
+      if($_REQUEST['authtok']){
+        // when an authentication token is given, trust the session
+        auth_validateToken($_REQUEST['authtok']);
+      }elseif(!is_null($auth) && $auth->canDo('external')){
+        // external trust mechanism in place
         $auth->trustExternal($_REQUEST['u'],$_REQUEST['p'],$_REQUEST['r']);
       }else{
-        auth_login($_REQUEST['u'],$_REQUEST['p'],$_REQUEST['r']);
+        auth_login($_REQUEST['u'],$_REQUEST['p'],$_REQUEST['r'],$_REQUEST['http_credentials']);
       }
     }
 
@@ -78,7 +90,8 @@
     if(is_readable(DOKU_CONF.'acl.auth.php')){
       $AUTH_ACL = file(DOKU_CONF.'acl.auth.php');
       if(isset($_SERVER['REMOTE_USER'])){
-        $AUTH_ACL = str_replace('@USER@',$_SERVER['REMOTE_USER'],$AUTH_ACL);
+        $AUTH_ACL = str_replace('%USER%',$_SERVER['REMOTE_USER'],$AUTH_ACL);
+        $AUTH_ACL = str_replace('@USER@',$_SERVER['REMOTE_USER'],$AUTH_ACL); //legacy
       }
     }else{
       $AUTH_ACL = array();
@@ -126,21 +139,7 @@ function auth_login($user,$pass,$sticky=false,$silent=false){
     if ($auth->checkPass($user,$pass)){
       // make logininfo globally available
       $_SERVER['REMOTE_USER'] = $user;
-      $USERINFO = $auth->getUserData($user);
-
-      // set cookie
-      $pass   = PMA_blowfish_encrypt($pass,auth_cookiesalt());
-      $cookie = base64_encode("$user|$sticky|$pass");
-      if($sticky) $time = time()+60*60*24*365; //one year
-      setcookie(DOKU_COOKIE,$cookie,$time,DOKU_REL);
-
-      // set session
-      $_SESSION[DOKU_COOKIE]['auth']['user'] = $user;
-      $_SESSION[DOKU_COOKIE]['auth']['pass'] = $pass;
-      $_SESSION[DOKU_COOKIE]['auth']['buid'] = auth_browseruid();
-      $_SESSION[DOKU_COOKIE]['auth']['info'] = $USERINFO;
-      $_SESSION[DOKU_COOKIE]['auth']['time'] = time();
-
+      auth_setCookie($user,PMA_blowfish_encrypt($pass,auth_cookiesalt()),$sticky);
       return true;
     }else{
       //invalid credentials - log off
@@ -157,6 +156,7 @@ function auth_login($user,$pass,$sticky=false,$silent=false){
     if($user && $pass){
       // we got a cookie - see if we can trust it
       if(isset($session) &&
+        $auth->useSessionCache($user) &&
         ($session['time'] >= time()-$conf['auth_security_timeout']) &&
         ($session['user'] == $user) &&
         ($session['pass'] == $pass) &&  //still crypted
@@ -172,8 +172,49 @@ function auth_login($user,$pass,$sticky=false,$silent=false){
     }
   }
   //just to be sure
-  auth_logoff();
+  auth_logoff(true);
   return false;
+}
+
+/**
+ * Checks if a given authentication token was stored in the session
+ *
+ * Will setup authentication data using data from the session if the
+ * token is correct. Will exit with a 401 Status if not.
+ *
+ * @author Andreas Gohr <andi@splitbrain.org>
+ * @param  string $token The authentication token
+ * @return boolean true (or will exit on failure)
+ */
+function auth_validateToken($token){
+    if(!$token || $token != $_SESSION[DOKU_COOKIE]['auth']['token']){
+        // bad token
+        header("HTTP/1.0 401 Unauthorized");
+        print 'Invalid auth token - maybe the session timed out';
+        unset($_SESSION[DOKU_COOKIE]['auth']['token']); // no second chance
+        exit;
+    }
+    // still here? trust the session data
+    global $USERINFO;
+    $_SERVER['REMOTE_USER'] = $_SESSION[DOKU_COOKIE]['auth']['user'];
+    $USERINFO = $_SESSION[DOKU_COOKIE]['auth']['info'];
+    return true;
+}
+
+/**
+ * Create an auth token and store it in the session
+ *
+ * NOTE: this is completely unrelated to the getSecurityToken() function
+ *
+ * @author Andreas Gohr <andi@splitbrain.org>
+ * @return string The auth token
+ */
+function auth_createToken(){
+    $token = md5(mt_rand());
+    @session_start(); // reopen the session if needed
+    $_SESSION[DOKU_COOKIE]['auth']['token'] = $token;
+    session_write_close();
+    return $token;
 }
 
 /**
@@ -221,16 +262,22 @@ function auth_cookiesalt(){
 }
 
 /**
- * This clears all authenticationdata and thus log the user
- * off
+ * Log out the current user
+ *
+ * This clears all authentication data and thus log the user
+ * off. It also clears session data.
  *
  * @author  Andreas Gohr <andi@splitbrain.org>
+ * @param bool $keepbc - when true, the breadcrumb data is not cleared
  */
-function auth_logoff(){
+function auth_logoff($keepbc=false){
   global $conf;
   global $USERINFO;
   global $INFO, $ID;
   global $auth;
+
+  // make sure the session is writable (it usually is)
+  @session_start();
 
   if(isset($_SESSION[DOKU_COOKIE]['auth']['user']))
     unset($_SESSION[DOKU_COOKIE]['auth']['user']);
@@ -238,10 +285,17 @@ function auth_logoff(){
     unset($_SESSION[DOKU_COOKIE]['auth']['pass']);
   if(isset($_SESSION[DOKU_COOKIE]['auth']['info']))
     unset($_SESSION[DOKU_COOKIE]['auth']['info']);
+  if(!$keepbc && isset($_SESSION[DOKU_COOKIE]['bc']))
+    unset($_SESSION[DOKU_COOKIE]['bc']);
   if(isset($_SERVER['REMOTE_USER']))
     unset($_SERVER['REMOTE_USER']);
   $USERINFO=null; //FIXME
-  setcookie(DOKU_COOKIE,'',time()-600000,DOKU_REL);
+
+  if (version_compare(PHP_VERSION, '5.2.0', '>')) {
+    setcookie(DOKU_COOKIE,'',time()-600000,DOKU_REL,'',($conf['securecookie'] && is_ssl()),true);
+  }else{
+    setcookie(DOKU_COOKIE,'',time()-600000,DOKU_REL,'',($conf['securecookie'] && is_ssl()));
+  }
 
   if($auth && $auth->canDo('logoff')){
     $auth->logOff();
@@ -268,26 +322,46 @@ function auth_ismanager($user=null,$groups=null,$adminonly=false){
 
   if(!$conf['useacl']) return false;
   if(is_null($user))   $user   = $_SERVER['REMOTE_USER'];
-  if(is_null($groups)) $groups = $USERINFO['grps'];
+  if(is_null($groups)) $groups = (array) $USERINFO['grps'];
   $user   = auth_nameencode($user);
 
   // check username against superuser and manager
-  if(auth_nameencode($conf['superuser']) == $user) return true;
+  $superusers = explode(',', $conf['superuser']);
+  $superusers = array_unique($superusers);
+  $superusers = array_map('trim', $superusers);
+  // prepare an array containing only true values for array_map call
+  $alltrue = array_fill(0, count($superusers), true);
+  $superusers = array_map('auth_nameencode', $superusers, $alltrue);
+  if(in_array($user, $superusers)) return true;
+
   if(!$adminonly){
-    if(auth_nameencode($conf['manager']) == $user) return true;
+    $managers = explode(',', $conf['manager']);
+    $managers = array_unique($managers);
+    $managers = array_map('trim', $managers);
+    // prepare an array containing only true values for array_map call
+    $alltrue = array_fill(0, count($managers), true);
+    $managers = array_map('auth_nameencode', $managers, $alltrue);
+    if(in_array($user, $managers)) return true;
   }
 
-  //prepend groups with @ and nameencode
-  $cnt = count($groups);
-  for($i=0; $i<$cnt; $i++){
-    $groups[$i] = '@'.auth_nameencode($groups[$i]);
+  // check user's groups against superuser and manager
+  if (!empty($groups)) {
+
+    //prepend groups with @ and nameencode
+    $cnt = count($groups);
+    for($i=0; $i<$cnt; $i++){
+      $groups[$i] = '@'.auth_nameencode($groups[$i]);
+    }
+
+    // check groups against superuser and manager
+    foreach($superusers as $supu)
+      if(in_array($supu, $groups)) return true;
+    if(!$adminonly){
+      foreach($managers as $mana)
+        if(in_array($mana, $groups)) return true;
+    }
   }
 
-  // check groups against superuser and manager
-  if(in_array(auth_nameencode($conf['superuser'],true), $groups)) return true;
-  if(!$adminonly){
-    if(in_array(auth_nameencode($conf['manager'],true), $groups)) return true;
-  }
   return false;
 }
 
@@ -338,33 +412,31 @@ function auth_aclcheck($id,$user,$groups){
   global $conf;
   global $AUTH_ACL;
 
-  # if no ACL is used always return upload rights
+  // if no ACL is used always return upload rights
   if(!$conf['useacl']) return AUTH_UPLOAD;
-
-  $user = auth_nameencode($user);
-
-  //if user is superuser return 255 (acl_admin)
-  if(auth_nameencode($conf['superuser']) == $user) { return AUTH_ADMIN; }
 
   //make sure groups is an array
   if(!is_array($groups)) $groups = array();
+
+  //if user is superuser or in superusergroup return 255 (acl_admin)
+  if(auth_isadmin($user,$groups)) { return AUTH_ADMIN; }
+
+  $user = auth_nameencode($user);
 
   //prepend groups with @ and nameencode
   $cnt = count($groups);
   for($i=0; $i<$cnt; $i++){
     $groups[$i] = '@'.auth_nameencode($groups[$i]);
   }
-  //if user is in superuser group return 255 (acl_admin)
-  if(in_array(auth_nameencode($conf['superuser'],true), $groups)) { return AUTH_ADMIN; }
 
   $ns    = getNS($id);
   $perm  = -1;
 
-  if($user){
+  if($user || count($groups)){
     //add ALL group
     $groups[] = '@ALL';
     //add User
-    $groups[] = $user;
+    if($user) $groups[] = $user;
     //build regexp
     $regexp   = join('|',$groups);
   }else{
@@ -450,10 +522,10 @@ function auth_nameencode($name,$skip_group=false){
   if (!isset($cache[$name][$skip_group])) {
     if($skip_group && $name{0} =='@'){
       $cache[$name][$skip_group] = '@'.preg_replace('/([\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\x7f])/e',
-                                                    "'%'.dechex(ord('\\1'))",substr($name,1));
+                                                    "'%'.dechex(ord(substr('\\1',-1)))",substr($name,1));
     }else{
       $cache[$name][$skip_group] = preg_replace('/([\x00-\x2f\x3a-\x40\x5b-\x60\x7b-\x7f])/e',
-                                                "'%'.dechex(ord('\\1'))",$name);
+                                                "'%'.dechex(ord(substr('\\1',-1)))",$name);
     }
   }
 
@@ -567,7 +639,7 @@ function register(){
   }
 
   //okay try to create the user
-  if(!$auth->createUser($_POST['login'],$pass,$_POST['fullname'],$_POST['email'])){
+  if(!$auth->triggerUserMod('create', array($_POST['login'],$pass,$_POST['fullname'],$_POST['email']))){
     msg($lang['reguexists'],-1);
     return false;
   }
@@ -608,6 +680,7 @@ function updateprofile() {
   global $auth;
 
   if(empty($_POST['save'])) return false;
+  if(!checkSecurityToken()) return false;
 
   // should not be able to get here without Profile being possible...
   if(!$auth->canDo('Profile')) {
@@ -634,9 +707,10 @@ function updateprofile() {
     return false;
   }
 
-  if ($_POST['fullname'] != $INFO['userinfo']['name']) $changes['name'] = $_POST['fullname'];
-  if ($_POST['email']    != $INFO['userinfo']['mail']) $changes['mail'] = $_POST['email'];
-  if (!empty($_POST['newpass']))  $changes['pass'] = $_POST['newpass'];
+  if ($_POST['fullname'] != $INFO['userinfo']['name'] && $auth->canDo('modName')) $changes['name'] = $_POST['fullname'];
+  if ($_POST['email'] != $INFO['userinfo']['mail'] && $auth->canDo('modMail')) $changes['mail'] = $_POST['email'];
+  if (!empty($_POST['newpass']) && $auth->canDo('modPass')) $changes['pass'] = $_POST['newpass'];
+
 
   if (!count($changes)) {
     msg($lang['profnochange'], -1);
@@ -644,13 +718,21 @@ function updateprofile() {
   }
 
   if ($conf['profileconfirm']) {
-      if (!auth_verifyPassword($_POST['oldpass'],$INFO['userinfo']['pass'])) {
+    if (!$auth->checkPass($_SERVER['REMOTE_USER'], $_POST['oldpass'])) {
       msg($lang['badlogin'],-1);
       return false;
     }
   }
 
-  return $auth->modifyUser($_SERVER['REMOTE_USER'], $changes);
+  if ($result = $auth->triggerUserMod('modify', array($_SERVER['REMOTE_USER'], $changes))) {
+    // update cookie and session with the changed data
+    $cookie = base64_decode($_COOKIE[DOKU_COOKIE]);
+    list($user,$sticky,$pass) = split('\|',$cookie,3);
+    if ($changes['pass']) $pass = PMA_blowfish_encrypt($changes['pass'],auth_cookiesalt());
+
+    auth_setCookie($_SERVER['REMOTE_USER'],$pass,(bool)$sticky);
+    return true;
+  }
 }
 
 /**
@@ -699,7 +781,7 @@ function act_resendpwd(){
         }
 
         $pass = auth_pwgen();
-        if (!$auth->modifyUser($user,array('pass' => $pass))) {
+        if (!$auth->triggerUserMod('modify', array($user,array('pass' => $pass)))) {
             msg('error modifying user data',-1);
             return false;
         }
@@ -759,20 +841,6 @@ function act_resendpwd(){
 }
 
 /**
- * Uses a regular expresion to check if a given mail address is valid
- *
- * May not be completly RFC conform!
- *
- * @link    http://www.webmasterworld.com/forum88/135.htm
- *
- * @param   string $email the address to check
- * @return  bool          true if address is valid
- */
-function isvalidemail($email){
-  return eregi("^[0-9a-z]([-_.]?[0-9a-z])*@[0-9a-z]([-.]?[0-9a-z])*\\.[a-z]{2,4}$", $email);
-}
-
-/**
  * Encrypts a password using the given method and salt
  *
  * If the selected method needs a salt and none was given, a random one
@@ -781,6 +849,7 @@ function isvalidemail($email){
  * The following methods are understood:
  *
  *   smd5  - Salted MD5 hashing
+ *   apr1  - Apache salted MD5 hashing
  *   md5   - Simple MD5 hashing
  *   sha1  - SHA1 hashing
  *   ssha  - Salted SHA1 hashing
@@ -791,44 +860,75 @@ function isvalidemail($email){
  * @author  Andreas Gohr <andi@splitbrain.org>
  * @return  string  The crypted password
  */
-function auth_cryptPassword($clear,$method='',$salt=''){
-  global $conf;
-  if(empty($method)) $method = $conf['passcrypt'];
+function auth_cryptPassword($clear,$method='',$salt=null){
+    global $conf;
+    if(empty($method)) $method = $conf['passcrypt'];
 
-  //prepare a salt
-  if(empty($salt)) $salt = md5(uniqid(rand(), true));
+    //prepare a salt
+    if(is_null($salt)) $salt = md5(uniqid(rand(), true));
 
-  switch(strtolower($method)){
-    case 'smd5':
-        return crypt($clear,'$1$'.substr($salt,0,8).'$');
-    case 'md5':
-      return md5($clear);
-    case 'sha1':
-      return sha1($clear);
-    case 'ssha':
-      $salt=substr($salt,0,4);
-      return '{SSHA}'.base64_encode(pack("H*", sha1($clear.$salt)).$salt);
-    case 'crypt':
-      return crypt($clear,substr($salt,0,2));
-    case 'mysql':
-      //from http://www.php.net/mysql comment by <soren at byu dot edu>
-      $nr=0x50305735;
-      $nr2=0x12345671;
-      $add=7;
-      $charArr = preg_split("//", $clear);
-      foreach ($charArr as $char) {
-        if (($char == '') || ($char == ' ') || ($char == '\t')) continue;
-        $charVal = ord($char);
-        $nr ^= ((($nr & 63) + $add) * $charVal) + ($nr << 8);
-        $nr2 += ($nr2 << 8) ^ $nr;
-        $add += $charVal;
-      }
-      return sprintf("%08x%08x", ($nr & 0x7fffffff), ($nr2 & 0x7fffffff));
-    case 'my411':
-      return '*'.sha1(pack("H*", sha1($clear)));
-    default:
-      msg("Unsupported crypt method $method",-1);
-  }
+    switch(strtolower($method)){
+        case 'smd5':
+            if(defined('CRYPT_MD5') && CRYPT_MD5) return crypt($clear,'$1$'.substr($salt,0,8).'$');
+            // when crypt can't handle SMD5, falls through to pure PHP implementation
+            $magic = '1';
+        case 'apr1':
+            //from http://de.php.net/manual/en/function.crypt.php#73619 comment by <mikey_nich at hotmail dot com>
+            if(!$magic) $magic = 'apr1';
+            $salt = substr($salt,0,8);
+            $len = strlen($clear);
+            $text = $clear.'$'.$magic.'$'.$salt;
+            $bin = pack("H32", md5($clear.$salt.$clear));
+            for($i = $len; $i > 0; $i -= 16) { $text .= substr($bin, 0, min(16, $i)); }
+            for($i = $len; $i > 0; $i >>= 1) { $text .= ($i & 1) ? chr(0) : $clear{0}; }
+            $bin = pack("H32", md5($text));
+            for($i = 0; $i < 1000; $i++) {
+                $new = ($i & 1) ? $clear : $bin;
+                if ($i % 3) $new .= $salt;
+                if ($i % 7) $new .= $clear;
+                $new .= ($i & 1) ? $bin : $clear;
+                $bin = pack("H32", md5($new));
+            }
+            $tmp = '';
+            for ($i = 0; $i < 5; $i++) {
+                $k = $i + 6;
+                $j = $i + 12;
+                if ($j == 16) $j = 5;
+                $tmp = $bin[$i].$bin[$k].$bin[$j].$tmp;
+            }
+            $tmp = chr(0).chr(0).$bin[11].$tmp;
+            $tmp = strtr(strrev(substr(base64_encode($tmp), 2)),
+                    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",
+                    "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+            return '$'.$magic.'$'.$salt.'$'.$tmp;
+        case 'md5':
+            return md5($clear);
+        case 'sha1':
+            return sha1($clear);
+        case 'ssha':
+            $salt=substr($salt,0,4);
+            return '{SSHA}'.base64_encode(pack("H*", sha1($clear.$salt)).$salt);
+        case 'crypt':
+            return crypt($clear,substr($salt,0,2));
+        case 'mysql':
+            //from http://www.php.net/mysql comment by <soren at byu dot edu>
+            $nr=0x50305735;
+            $nr2=0x12345671;
+            $add=7;
+            $charArr = preg_split("//", $clear);
+            foreach ($charArr as $char) {
+                if (($char == '') || ($char == ' ') || ($char == '\t')) continue;
+                $charVal = ord($char);
+                $nr ^= ((($nr & 63) + $add) * $charVal) + ($nr << 8);
+                $nr2 += ($nr2 << 8) ^ $nr;
+                $add += $charVal;
+            }
+            return sprintf("%08x%08x", ($nr & 0x7fffffff), ($nr2 & 0x7fffffff));
+        case 'my411':
+            return '*'.sha1(pack("H*", sha1($clear)));
+        default:
+            msg("Unsupported crypt method $method",-1);
+    }
 }
 
 /**
@@ -842,35 +942,68 @@ function auth_cryptPassword($clear,$method='',$salt=''){
  * @return  bool
  */
 function auth_verifyPassword($clear,$crypt){
-  $method='';
-  $salt='';
+    $method='';
+    $salt='';
 
-  //determine the used method and salt
-  $len = strlen($crypt);
-  if(substr($crypt,0,3) == '$1$'){
-    $method = 'smd5';
-    $salt   = substr($crypt,3,8);
-  }elseif(substr($crypt,0,6) == '{SSHA}'){
-    $method = 'ssha';
-    $salt   = substr(base64_decode(substr($crypt, 6)),20);
-  }elseif($len == 32){
-    $method = 'md5';
-  }elseif($len == 40){
-    $method = 'sha1';
-  }elseif($len == 16){
-    $method = 'mysql';
-  }elseif($len == 41 && $crypt[0] == '*'){
-    $method = 'my411';
-  }else{
-    $method = 'crypt';
-    $salt   = substr($crypt,0,2);
-  }
+    //determine the used method and salt
+    $len = strlen($crypt);
+    if(preg_match('/^\$1\$([^\$]{0,8})\$/',$crypt,$m)){
+        $method = 'smd5';
+        $salt   = $m[1];
+    }elseif(preg_match('/^\$apr1\$([^\$]{0,8})\$/',$crypt,$m)){
+        $method = 'apr1';
+        $salt   = $m[1];
+    }elseif(substr($crypt,0,6) == '{SSHA}'){
+        $method = 'ssha';
+        $salt   = substr(base64_decode(substr($crypt, 6)),20);
+    }elseif($len == 32){
+        $method = 'md5';
+    }elseif($len == 40){
+        $method = 'sha1';
+    }elseif($len == 16){
+        $method = 'mysql';
+    }elseif($len == 41 && $crypt[0] == '*'){
+        $method = 'my411';
+    }else{
+        $method = 'crypt';
+        $salt   = substr($crypt,0,2);
+    }
 
-  //crypt and compare
-  if(auth_cryptPassword($clear,$method,$salt) === $crypt){
-    return true;
-  }
-  return false;
+    //crypt and compare
+    if(auth_cryptPassword($clear,$method,$salt) === $crypt){
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Set the authentication cookie and add user identification data to the session
+ *
+ * @param string  $user       username
+ * @param string  $pass       encrypted password
+ * @param bool    $sticky     whether or not the cookie will last beyond the session
+ */
+function auth_setCookie($user,$pass,$sticky) {
+    global $conf;
+    global $auth;
+    global $USERINFO;
+
+      $USERINFO = $auth->getUserData($user);
+
+      // set cookie
+      $cookie = base64_encode("$user|$sticky|$pass");
+      if($sticky) $time = time()+60*60*24*365; //one year
+      if (version_compare(PHP_VERSION, '5.2.0', '>')) {
+          setcookie(DOKU_COOKIE,$cookie,$time,DOKU_REL,'',($conf['securecookie'] && is_ssl()),true);
+      }else{
+          setcookie(DOKU_COOKIE,$cookie,$time,DOKU_REL,'',($conf['securecookie'] && is_ssl()));
+      }
+      // set session
+      $_SESSION[DOKU_COOKIE]['auth']['user'] = $user;
+      $_SESSION[DOKU_COOKIE]['auth']['pass'] = $pass;
+      $_SESSION[DOKU_COOKIE]['auth']['buid'] = auth_browseruid();
+      $_SESSION[DOKU_COOKIE]['auth']['info'] = $USERINFO;
+      $_SESSION[DOKU_COOKIE]['auth']['time'] = time();
 }
 
 //Setup VIM: ex: et ts=2 enc=utf-8 :

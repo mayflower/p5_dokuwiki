@@ -71,10 +71,16 @@ function addLogEntry($date, $id, $type=DOKU_CHANGE_TYPE_EDIT, $summary='', $extr
 
   // update metadata
   if (!$wasRemoved) {
-    $meta = array();
-    if (!$INFO['exists']){ // newly created
+    $oldmeta = p_read_metadata($id);
+    $meta    = array();
+    if (!$INFO['exists'] && empty($oldmeta['persistent']['date']['created'])){ // newly created
       $meta['date']['created'] = $created;
       if ($user) $meta['creator'] = $INFO['userinfo']['name'];
+    } elseif (!$INFO['exists'] && !empty($oldmeta['persistent']['date']['created'])) { // re-created / restored
+      $meta['date']['created']  = $oldmeta['persistent']['date']['created'];
+      $meta['date']['modified'] = $created; // use the files ctime here
+      $meta['creator'] = $oldmeta['persistent']['creator'];
+      if ($user) $meta['contributor'][$user] = $INFO['userinfo']['name'];
     } elseif (!$minor) {   // non-minor modification
       $meta['date']['modified'] = $date;
       if ($user) $meta['contributor'][$user] = $INFO['userinfo']['name'];
@@ -90,6 +96,39 @@ function addLogEntry($date, $id, $type=DOKU_CHANGE_TYPE_EDIT, $summary='', $extr
 }
 
 /**
+ * Add's an entry to the media changelog
+ *
+ * @author Michael Hamann <michael@content-space.de>
+ * @author Andreas Gohr <andi@splitbrain.org>
+ * @author Esther Brunner <wikidesign@gmail.com>
+ * @author Ben Coburn <btcoburn@silicodon.net>
+ */
+function addMediaLogEntry($date, $id, $type=DOKU_CHANGE_TYPE_EDIT, $summary='', $extra='', $flags=null){
+  global $conf, $INFO;
+
+  $id = cleanid($id);
+
+  if(!$date) $date = time(); //use current time if none supplied
+  $remote = $_SERVER['REMOTE_ADDR'];
+  $user   = $_SERVER['REMOTE_USER'];
+
+  $strip = array("\t", "\n");
+  $logline = array(
+    'date'  => $date,
+    'ip'    => $remote,
+    'type'  => str_replace($strip, '', $type),
+    'id'    => $id,
+    'user'  => $user,
+    'sum'   => str_replace($strip, '', $summary),
+    'extra' => str_replace($strip, '', $extra)
+  );
+
+  // add changelog lines
+  $logline = implode("\t", $logline)."\n";
+  io_saveFile($conf['media_changelog'],$logline,true); //global media changelog cache
+}
+
+/**
  * returns an array of recently changed files using the
  * changelog
  *
@@ -99,6 +138,7 @@ function addLogEntry($date, $id, $type=DOKU_CHANGE_TYPE_EDIT, $summary='', $extr
  * RECENTS_SKIP_DELETED   - don't include deleted pages
  * RECENTS_SKIP_MINORS    - don't include minor changes
  * RECENTS_SKIP_SUBSPACES - don't include subspaces
+ * RECENTS_MEDIA_CHANGES  - return media changes instead of page changes
  *
  * @param int    $first   number of first entry returned (for paginating
  * @param int    $num     return $num entries
@@ -116,12 +156,17 @@ function getRecents($first,$num,$ns='',$flags=0){
     return $recent;
 
   // read all recent changes. (kept short)
-  $lines = @file($conf['changelog']);
+  if ($flags & RECENTS_MEDIA_CHANGES) {
+    $lines = @file($conf['media_changelog']);
+  } else {
+    $lines = @file($conf['changelog']);
+  }
 
 
   // handle lines
+  $seen = array(); // caches seen lines, _handleRecent() skips them
   for($i = count($lines)-1; $i >= 0; $i--){
-    $rec = _handleRecent($lines[$i], $ns, $flags);
+    $rec = _handleRecent($lines[$i], $ns, $flags, $seen);
     if($rec !== false) {
       if(--$first >= 0) continue; // skip first entries
       $recent[] = $rec;
@@ -135,6 +180,62 @@ function getRecents($first,$num,$ns='',$flags=0){
 }
 
 /**
+ * returns an array of files changed since a given time using the
+ * changelog
+ *
+ * The following constants can be used to control which changes are
+ * included. Add them together as needed.
+ *
+ * RECENTS_SKIP_DELETED   - don't include deleted pages
+ * RECENTS_SKIP_MINORS    - don't include minor changes
+ * RECENTS_SKIP_SUBSPACES - don't include subspaces
+ * RECENTS_MEDIA_CHANGES  - return media changes instead of page changes
+ *
+ * @param int    $from    date of the oldest entry to return
+ * @param int    $to      date of the newest entry to return (for pagination, optional)
+ * @param string $ns      restrict to given namespace (optional)
+ * @param bool   $flags   see above (optional)
+ *
+ * @author Michael Hamann <michael@content-space.de>
+ * @author Ben Coburn <btcoburn@silicodon.net>
+ */
+function getRecentsSince($from,$to=null,$ns='',$flags=0){
+  global $conf;
+  $recent = array();
+
+  if($to && $to < $from)
+    return $recent;
+
+  // read all recent changes. (kept short)
+  if ($flags & RECENTS_MEDIA_CHANGES) {
+    $lines = @file($conf['media_changelog']);
+  } else {
+    $lines = @file($conf['changelog']);
+  }
+
+  // we start searching at the end of the list
+  $lines = array_reverse($lines);
+
+  // handle lines
+  $seen = array(); // caches seen lines, _handleRecent() skips them
+
+  foreach($lines as $line){
+    $rec = _handleRecent($line, $ns, $flags, $seen);
+    if($rec !== false) {
+      if ($rec['date'] >= $from) {
+        if (!$to || $rec['date'] <= $to) {
+          $recent[] = $rec;
+        }
+      } else {
+        break;
+      }
+    }
+  }
+
+  return array_reverse($recent);
+}
+
+/**
  * Internal function used by getRecents
  *
  * don't call directly
@@ -143,8 +244,7 @@ function getRecents($first,$num,$ns='',$flags=0){
  * @author Andreas Gohr <andi@splitbrain.org>
  * @author Ben Coburn <btcoburn@silicodon.net>
  */
-function _handleRecent($line,$ns,$flags){
-  static $seen  = array();         //caches seen pages and skip them
+function _handleRecent($line,$ns,$flags,&$seen){
   if(empty($line)) return false;   //skip empty lines
 
   // split the line into parts
@@ -170,10 +270,12 @@ function _handleRecent($line,$ns,$flags){
   if (($flags & RECENTS_SKIP_SUBSPACES) && (getNS($recent['id']) != $ns)) return false;
 
   // check ACL
-  if (auth_quickaclcheck($recent['id']) < AUTH_READ) return false;
+  $recent['perms'] = auth_quickaclcheck($recent['id']);
+  if ($recent['perms'] < AUTH_READ) return false;
 
   // check existance
-  if((!@file_exists(wikiFN($recent['id']))) && ($flags & RECENTS_SKIP_DELETED)) return false;
+  $fn = (($flags & RECENTS_MEDIA_CHANGES) ? mediaFN($recent['id']) : wikiFN($recent['id']));
+  if((!@file_exists($fn)) && ($flags & RECENTS_SKIP_DELETED)) return false;
 
   return $recent;
 }
@@ -244,7 +346,7 @@ function getRevisionInfo($id, $rev, $chunk_size=8192) {
     $got = 0;
     fseek($fp, $head);
     while ($got<$chunk_size && !feof($fp)) {
-      $tmp = fread($fp, max($chunk_size-$got, 0));
+      $tmp = @fread($fp, max($chunk_size-$got, 0));
       if ($tmp===false) { break; } //error state
       $got += strlen($tmp);
       $chunk .= $tmp;
@@ -329,7 +431,7 @@ function getRevisions($id, $first, $num, $chunk_size=8192) {
       $read_size = max($tail-$finger, 0); // found chunk size
       $got = 0;
       while ($got<$read_size && !feof($fp)) {
-        $tmp = fread($fp, max($read_size-$got, 0));
+        $tmp = @fread($fp, max($read_size-$got, 0));
         if ($tmp===false) { break; } //error state
         $got += strlen($tmp);
         $chunk .= $tmp;

@@ -6,8 +6,8 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-  if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../').'/');
-  require_once(DOKU_INC.'inc/template.php');
+if(!defined('DOKU_INC')) die('meh.');
+require_once(DOKU_INC.'inc/template.php');
 
 
 /**
@@ -24,6 +24,9 @@ function act_dispatch(){
   global $QUERY;
   global $lang;
   global $conf;
+  global $license;
+
+  $preact = $ACT;
 
   // give plugins an opportunity to process the action
   $evt = new Doku_Event('ACTION_ACT_PREPROCESS',$ACT);
@@ -39,12 +42,17 @@ function act_dispatch(){
     }
 
     //login stuff
-    if(in_array($ACT,array('login','logout')))
-      $ACT = act_auth($ACT);
+    if(in_array($ACT,array('login','logout'))){
+        $ACT = act_auth($ACT);
+    }
 
     //check if user is asking to (un)subscribe a page
     if($ACT == 'subscribe' || $ACT == 'unsubscribe')
       $ACT = act_subscription($ACT);
+
+    //check if user is asking to (un)subscribe a namespace
+    if($ACT == 'subscribens' || $ACT == 'unsubscribens')
+      $ACT = act_subscriptionns($ACT);
 
     //check permissions
     $ACT = act_permcheck($ACT);
@@ -60,14 +68,25 @@ function act_dispatch(){
     }
 
     //update user profile
-    if (($ACT == 'profile') && updateprofile()) {
-      msg($lang['profchanged'],1);
-      $ACT = 'show';
+    if ($ACT == 'profile') {
+      if(!$_SERVER['REMOTE_USER']) {
+        $ACT = 'login';
+      } else {
+        if(updateprofile()) {
+          msg($lang['profchanged'],1);
+          $ACT = 'show';
+        }
+      }
     }
 
     //save
-    if($ACT == 'save')
-      $ACT = act_save($ACT);
+    if($ACT == 'save'){
+      if(checkSecurityToken()){
+        $ACT = act_save($ACT);
+      }else{
+        $ACT = 'show';
+      }
+    }
 
     //cancel conflicting edit
     if($ACT == 'cancel')
@@ -117,6 +136,10 @@ function act_dispatch(){
   $evt->advise_after();
   unset($evt);
 
+  // when action 'show', the intial not 'show' and POST, do a redirect
+  if($ACT == 'show' && $preact != 'show' && strtolower($_SERVER['REQUEST_METHOD']) == 'post'){
+    act_redirect($ID,$preact);
+  }
 
   //call template FIXME: all needed vars available?
   $headers[] = 'Content-Type: text/html; charset=utf-8';
@@ -163,7 +186,7 @@ function act_clean($act){
   //disable all acl related commands if ACL is disabled
   if(!$conf['useacl'] && in_array($act,array('login','logout','register','admin',
                                              'subscribe','unsubscribe','profile',
-                                             'resendpwd',))){
+                                             'resendpwd','subscribens','unsubscribens',))){
     msg('Command unavailable: '.htmlspecialchars($act),-1);
     return 'show';
   }
@@ -172,7 +195,7 @@ function act_clean($act){
                           'preview','search','show','check','index','revisions',
                           'diff','recent','backlink','admin','subscribe',
                           'unsubscribe','profile','resendpwd','recover','wordblock',
-                          'draftdel',)) && substr($act,0,7) != 'export_' ) {
+                          'draftdel','subscribens','unsubscribens',)) && substr($act,0,7) != 'export_' ) {
     msg('Command unknown: '.htmlspecialchars($act),-1);
     return 'show';
   }
@@ -290,11 +313,51 @@ function act_save($act){
 
   //delete draft
   act_draftdel($act);
+  session_write_close();
+
+  // when done, show page
+  return 'show';
+}
+
+/**
+ * Do a redirect after receiving post data
+ *
+ * Tries to add the section id as hash mark after section editing
+ */
+function act_redirect($id,$preact){
+  global $PRE;
+  global $TEXT;
+  global $MSG;
+
+  //are there any undisplayed messages? keep them in session for display
+  //on the next page
+  if(isset($MSG) && count($MSG)){
+    //reopen session, store data and close session again
+    @session_start();
+    $_SESSION[DOKU_COOKIE]['msg'] = $MSG;
+    session_write_close();
+  }
+
+  //get section name when coming from section edit
+  if($PRE && preg_match('/^\s*==+([^=\n]+)/',$TEXT,$match)){
+    $check = false;
+    $title = sectionID($match[0],$check);
+  }
+
+  $opts = array(
+    'id'       => $id,
+    'fragment' => $title,
+    'preact'   => $preact
+  );
+  trigger_event('ACTION_SHOW_REDIRECT',$opts,'act_redirect_execute');
+}
+
+function act_redirect_execute($opts){
+  $go = wl($opts['id'],'',true);
+  if($opts['fragment']) $go .= '#'.$opts['fragment'];
 
   //show it
-  session_write_close();
-  header("Location: ".wl($ID,'',true));
-  exit();
+  send_redirect($go);
 }
 
 /**
@@ -308,8 +371,7 @@ function act_auth($act){
 
   //already logged in?
   if($_SERVER['REMOTE_USER'] && $act=='login'){
-    header("Location: ".wl($ID,'',true));
-    exit;
+    return 'show';
   }
 
   //handle logout
@@ -324,7 +386,7 @@ function act_auth($act){
     // rebuild info array
     $INFO = pageinfo();
 
-    return 'login';
+    act_redirect($ID,'login');
   }
 
   return $act;
@@ -348,63 +410,98 @@ function act_edit($act){
 }
 
 /**
- * Handle 'edit', 'preview'
+ * Export a wiki page for various formats
+ *
+ * Triggers ACTION_EXPORT_POSTPROCESS
+ *   
+ *  Event data:
+ *    data['id']      -- page id
+ *    data['mode']    -- requested export mode
+ *    data['headers'] -- export headers
+ *    data['output']  -- export output
  *
  * @author Andreas Gohr <andi@splitbrain.org>
+ * @author Michael Klier <chi@chimeric.de>
  */
 function act_export($act){
   global $ID;
   global $REV;
+  global $conf;
+  global $lang;
 
-  // no renderer for this
-  if($act == 'export_raw'){
-    header('Content-Type: text/plain; charset=utf-8');
-    print rawWiki($ID,$REV);
-    exit;
-  }
+  $pre = '';
+  $post = '';
+  $output = '';
+  $headers = array();
 
-  // html export #FIXME what about the template's style?
-  if($act == 'export_xhtml'){
-    global $conf;
-    global $lang;
-    header('Content-Type: text/html; charset=utf-8');
-    ptln('<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"');
-    ptln(' "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">');
-    ptln('<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="'.$conf['lang'].'"');
-    ptln(' lang="'.$conf['lang'].'" dir="'.$lang['direction'].'">');
-    ptln('<head>');
-    ptln('  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />');
-    ptln('  <title>'.$ID.'</title>');
-    tpl_metaheaders();
-    ptln('</head>');
-    ptln('<body>');
-    ptln('<div class="dokuwiki export">');
-    print p_wiki_xhtml($ID,$REV,false);
-    ptln('</div>');
-    ptln('</body>');
-    ptln('</html>');
-    exit;
-  }
+  // search engines: never cache exported docs! (Google only currently)
+  $headers['X-Robots-Tag'] = 'noindex';
 
-  // html body only
-  if($act == 'export_xhtmlbody'){
-    print p_wiki_xhtml($ID,$REV,false);
-    exit;
-  }
-
-  // try to run renderer
   $mode = substr($act,7);
-  $text = p_cached_output(wikiFN($ID,$REV), $mode);
-  if(!is_null($text)){
-    print $text;
-    exit;
+  switch($mode) {
+    case 'raw':
+      $headers['Content-Type'] = 'text/plain; charset=utf-8';
+      $output = rawWiki($ID,$REV);
+      break;
+    case 'xhtml':
+      $pre .= '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"' . DOKU_LF;
+      $pre .= ' "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">' . DOKU_LF;
+      $pre .= '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="'.$conf['lang'].'"' . DOKU_LF;
+      $pre .= ' lang="'.$conf['lang'].'" dir="'.$lang['direction'].'">' . DOKU_LF;
+      $pre .= '<head>' . DOKU_LF;
+      $pre .= '  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />' . DOKU_LF;
+      $pre .= '  <title>'.$ID.'</title>' . DOKU_LF;
+
+      // get metaheaders
+      ob_start();
+      tpl_metaheaders();
+      $pre .= ob_get_clean();
+
+      $pre .= '</head>' . DOKU_LF;
+      $pre .= '<body>' . DOKU_LF;
+      $pre .= '<div class="dokuwiki export">' . DOKU_LF;
+
+      // get toc
+      $pre .= tpl_toc(true);
+
+      $headers['Content-Type'] = 'text/html; charset=utf-8';
+      $output = p_wiki_xhtml($ID,$REV,false);
+
+      $post .= '</div>' . DOKU_LF;
+      $post .= '</body>' . DOKU_LF;
+      $post .= '</html>' . DOKU_LF;
+      break;
+    case 'xhtmlbody':
+      $headers['Content-Type'] = 'text/html; charset=utf-8';
+      $output = p_wiki_xhtml($ID,$REV,false);
+      break;
+    default:
+      $output = p_cached_output(wikiFN($ID,$REV), $mode);
+      $headers = p_get_metadata($ID,"format $mode");
+      break;
   }
 
+  // prepare event data
+  $data = array();
+  $data['id'] = $ID;
+  $data['mode'] = $mode;
+  $data['headers'] = $headers;
+  $data['output'] =& $output;
+
+  trigger_event('ACTION_EXPORT_POSTPROCESS', $data);
+
+  if(!empty($data['output'])){
+    if(is_array($data['headers'])) foreach($data['headers'] as $key => $val){
+      header("$key: $val");
+    }
+    print $pre.$data['output'].$post;
+    exit;
+  }
   return 'show';
 }
 
 /**
- * Handle 'subscribe', 'unsubscribe'
+ * Handle page 'subscribe', 'unsubscribe'
  *
  * @author Steven Danz <steven-danz@kc.rr.com>
  * @todo   localize
@@ -432,6 +529,49 @@ function act_subscription($act){
       msg(sprintf($lang[$act.'_success'], $INFO['userinfo']['name'], $ID),1);
     } else {
       msg(sprintf($lang[$act.'_error'], $INFO['userinfo']['name'], $ID),1);
+    }
+  }
+
+  return 'show';
+}
+
+/**
+ * Handle namespace 'subscribe', 'unsubscribe'
+ *
+ */
+function act_subscriptionns($act){
+  global $ID;
+  global $INFO;
+  global $lang;
+
+  if(!getNS($ID)) {
+    $file = metaFN(getNS($ID),'.mlist');
+    $ns = "root";
+  } else {
+    $file = metaFN(getNS($ID),'/.mlist');
+    $ns = getNS($ID);
+  }
+
+  // reuse strings used to display the status of the subscribe action
+  $act_msg = rtrim($act, 'ns');
+
+  if ($act=='subscribens' && !$INFO['subscribedns']){
+    if ($INFO['userinfo']['mail']){
+      if (io_saveFile($file,$_SERVER['REMOTE_USER']."\n",true)) {
+        $INFO['subscribedns'] = true;
+        msg(sprintf($lang[$act_msg.'_success'], $INFO['userinfo']['name'], $ns),1);
+      } else {
+        msg(sprintf($lang[$act_msg.'_error'], $INFO['userinfo']['name'], $ns),1);
+      }
+    } else {
+      msg($lang['subscribe_noaddress']);
+    }
+  } elseif ($act=='unsubscribens' && $INFO['subscribedns']){
+    if (io_deleteFromFile($file,$_SERVER['REMOTE_USER']."\n")) {
+      $INFO['subscribedns'] = false;
+      msg(sprintf($lang[$act_msg.'_success'], $INFO['userinfo']['name'], $ns),1);
+    } else {
+      msg(sprintf($lang[$act_msg.'_error'], $INFO['userinfo']['name'], $ns),1);
     }
   }
 

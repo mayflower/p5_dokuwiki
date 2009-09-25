@@ -5,7 +5,7 @@
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
-if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../').'/');
+if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/../../');
 define('DOKU_DISABLE_GZIP_OUTPUT',1);
 require_once(DOKU_INC.'inc/init.php');
 require_once(DOKU_INC.'inc/auth.php');
@@ -14,7 +14,7 @@ session_write_close();  //close session
 if(!defined('NL')) define('NL',"\n");
 
 // Version tag used to force rebuild on upgrade
-define('INDEXER_VERSION', 1);
+define('INDEXER_VERSION', 2);
 
 // keep running after browser closes connection
 @ignore_user_abort(true);
@@ -27,11 +27,22 @@ if(@ignore_user_abort() && !$conf['broken_iua']){
     $defer = true;
 }
 
+$ID = cleanID($_REQUEST['id']);
+
 // Catch any possible output (e.g. errors)
 if(!$_REQUEST['debug']) ob_start();
 
 // run one of the jobs
-runIndexer() or metaUpdate() or runSitemapper() or runTrimRecentChanges();
+$tmp = array();
+$evt = new Doku_Event('INDEXER_TASKS_RUN', $tmp);
+if ($evt->advise_before()) {
+  runIndexer() or
+  metaUpdate() or
+  runSitemapper() or
+  runTrimRecentChanges() or
+  runTrimRecentChanges(true) or
+  $evt->advise_after();
+}
 if($defer) sendGIF();
 
 if(!$_REQUEST['debug']) ob_end_clean();
@@ -42,38 +53,32 @@ exit;
 /**
  * Trims the recent changes cache (or imports the old changelog) as needed.
  *
+ * @param media_changes If the media changelog shall be trimmed instead of
+ * the page changelog
+ *
  * @author Ben Coburn <btcoburn@silicodon.net>
  */
-function runTrimRecentChanges() {
+function runTrimRecentChanges($media_changes = false) {
     global $conf;
 
-    // Import old changelog (if needed)
-    // Uses the imporoldchangelog plugin to upgrade the changelog automaticaly.
-    // FIXME: Remove this from runTrimRecentChanges when it is no longer needed.
-    if (isset($conf['changelog_old']) &&
-        @file_exists($conf['changelog_old']) && !@file_exists($conf['changelog']) &&
-        !@file_exists($conf['changelog'].'_importing') && !@file_exists($conf['changelog'].'_tmp')) {
-            $tmp = array(); // no event data
-            trigger_event('TEMPORARY_CHANGELOG_UPGRADE_EVENT', $tmp);
-            return true;
-    }
+    $fn = ($media_changes ? $conf['media_changelog'] : $conf['changelog']);
 
     // Trim the Recent Changes
     // Trims the recent changes cache to the last $conf['changes_days'] recent
     // changes or $conf['recent'] items, which ever is larger.
     // The trimming is only done once a day.
-    if (@file_exists($conf['changelog']) &&
-        (filectime($conf['changelog'])+86400)<time() &&
-        !@file_exists($conf['changelog'].'_tmp')) {
-            io_lock($conf['changelog']);
-            $lines = file($conf['changelog']);
-            if (count($lines)<$conf['recent']) {
+    if (@file_exists($fn) &&
+        (filectime($fn)+86400)<time() &&
+        !@file_exists($fn.'_tmp')) {
+            io_lock($fn);
+            $lines = file($fn);
+            if (count($lines)<=$conf['recent']) {
                 // nothing to trim
-                io_unlock($conf['changelog']);
-                return true;
+                io_unlock($fn);
+                return false;
             }
 
-            io_saveFile($conf['changelog'].'_tmp', '');          // presave tmp as 2nd lock
+            io_saveFile($fn.'_tmp', '');          // presave tmp as 2nd lock
             $trim_time = time() - $conf['recent_days']*86400;
             $out_lines = array();
 
@@ -97,15 +102,15 @@ function runTrimRecentChanges() {
             }
 
             // save trimmed changelog
-            io_saveFile($conf['changelog'].'_tmp', implode('', $out_lines));
-            @unlink($conf['changelog']);
-            if (!rename($conf['changelog'].'_tmp', $conf['changelog'])) {
+            io_saveFile($fn.'_tmp', implode('', $out_lines));
+            @unlink($fn);
+            if (!rename($fn.'_tmp', $fn)) {
                 // rename failed so try another way...
-                io_unlock($conf['changelog']);
-                io_saveFile($conf['changelog'], implode('', $out_lines));
-                @unlink($conf['changelog'].'_tmp');
+                io_unlock($fn);
+                io_saveFile($fn, implode('', $out_lines));
+                @unlink($fn.'_tmp');
             } else {
-                io_unlock($conf['changelog']);
+                io_unlock($fn);
             }
             return true;
     }
@@ -120,6 +125,7 @@ function runTrimRecentChanges() {
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function runIndexer(){
+    global $ID;
     global $conf;
     print "runIndexer(): started".NL;
 
@@ -135,7 +141,6 @@ function runIndexer(){
         trigger_event('TEMPORARY_INDEX_UPGRADE_EVENT', $tmp);
     }
 
-    $ID = cleanID($_REQUEST['id']);
     if(!$ID) return false;
 
     // check if indexing needed
@@ -167,6 +172,10 @@ function runIndexer(){
 
     require_once(DOKU_INC.'inc/indexer.php');
 
+    // upgrade to version 2
+    if (!@file_exists($conf['indexdir'].'/pageword.idx'))
+        idx_upgradePageWords();
+
     // do the work
     idx_addPage($ID);
 
@@ -184,9 +193,9 @@ function runIndexer(){
  * gain their data when viewed for the first time.
  */
 function metaUpdate(){
+    global $ID;
     print "metaUpdate(): started".NL;
 
-    $ID = cleanID($_REQUEST['id']);
     if(!$ID) return false;
     $file = metaFN($ID, '.meta');
     echo "meta file: $file".NL;
@@ -252,7 +261,7 @@ function runSitemapper(){
         if(!is_writable(DOKU_INC)) return false;
     }
 
-    if(@filesize(DOKU_INC.$sitemap) && 
+    if(@filesize(DOKU_INC.$sitemap) &&
        @filemtime(DOKU_INC.$sitemap) > (time()-($conf['sitemap']*60*60*24))){
        print 'runSitemapper(): Sitemap up to date'.NL;
        return false;
@@ -309,7 +318,7 @@ function runSitemapper(){
 
     //ping microsoft
     print 'runSitemapper(): pinging microsoft'.NL;
-    $url  = 'http://search.live.com/ping?sitemap=';
+    $url  = 'http://webmaster.live.com/webmaster/ping.aspx?sitemap=';
     $url .= urlencode(DOKU_URL.$sitemap);
     $resp = $http->get($url);
     if($http->error) print 'runSitemapper(): '.$http->error.NL;
@@ -336,7 +345,7 @@ function date_iso8601($int_date) {
 
 /**
  * Just send a 1x1 pixel blank gif to the browser
- * 
+ *
  * @author Andreas Gohr <andi@splitbrain.org>
  * @author Harry Fuecks <fuecks@gmail.com>
  */

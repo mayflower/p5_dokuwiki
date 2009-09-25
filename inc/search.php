@@ -6,8 +6,8 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-  if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../').'/');
-  require_once(DOKU_INC.'inc/common.php');
+if(!defined('DOKU_INC')) die('meh.');
+require_once(DOKU_INC.'inc/common.php');
 
 /**
  * recurse direcory
@@ -34,9 +34,6 @@ function search(&$data,$base,$func,$opts,$dir='',$lvl=1){
     if(is_dir($base.'/'.$dir.'/'.$file)){
       $dirs[] = $dir.'/'.$file;
       continue;
-    }elseif(substr($file,-5) == '.lock'){
-      //skip lockfiles
-      continue;
     }
     $files[] = $dir.'/'.$file;
   }
@@ -46,38 +43,23 @@ function search(&$data,$base,$func,$opts,$dir='',$lvl=1){
 
   //give directories to userfunction then recurse
   foreach($dirs as $dir){
-    if (search_callback($func,$data,$base,$dir,'d',$lvl,$opts)){
+    if (call_user_func_array($func, array(&$data,$base,$dir,'d',$lvl,$opts))){
       search($data,$base,$func,$opts,$dir,$lvl+1);
     }
   }
   //now handle the files
   foreach($files as $file){
-    search_callback($func,$data,$base,$file,'f',$lvl,$opts);
+    call_user_func_array($func, array(&$data,$base,$file,'f',$lvl,$opts));
   }
 }
 
 /**
- * Used to run the a user callback
+ * Wrapper around call_user_func_array.
  *
- * Makes sure the $data array is passed by reference (unlike when using
- * call_user_func())
- *
- * @todo If this can be generalized it may be useful elsewhere in the code
- * @author Andreas Gohr <andi@splitbrain.org>
+ * @deprecated
  */
 function search_callback($func,&$data,$base,$file,$type,$lvl,$opts){
-  if(is_array($func)){
-    if(is_object($func[0])){
-      // instanciated object
-      return $func[0]->$func[1]($data,$base,$file,$type,$lvl,$opts);
-    }else{
-      // static call
-      $f = $func[0].'::'.$func[1];
-      return $f($data,$base,$file,$type,$lvl,$opts);
-    }
-  }
-  // simple function call
-  return $func($data,$base,$file,$type,$lvl,$opts);
+  return call_user_func_array($func, array(&$data,$base,$file,$type,$lvl,$opts));
 }
 
 /**
@@ -99,7 +81,8 @@ function search_callback($func,&$data,$base,$file,$type,$lvl,$opts){
  * All functions should check the ACL for document READ rights
  * namespaces (directories) are NOT checked as this would break
  * the recursion (You can have an nonreadable dir over a readable
- * one deeper nested)
+ * one deeper nested) also make sure to check the file type (for example
+ * in case of lockfiles).
  */
 
 /**
@@ -113,6 +96,9 @@ function search_qsearch(&$data,$base,$file,$type,$lvl,$opts){
   if($type == 'd'){
     return false; //no handling yet
   }
+
+  //only search txt files
+  if(substr($file,-4) != '.txt') return false;
 
   //get id
   $id = pathID($file);
@@ -150,7 +136,7 @@ function search_index(&$data,$base,$file,$type,$lvl,$opts){
   if($type == 'd' && !preg_match('#^'.$file.'(/|$)#','/'.$opts['ns'])){
     //add but don't recurse
     $return = false;
-  }elseif($type == 'f' && ($opts['nofiles'] || !preg_match('#\.txt$#',$file))){
+  }elseif($type == 'f' && ($opts['nofiles'] || substr($file,-4) != '.txt')){
     //don't add
     return false;
   }
@@ -200,10 +186,17 @@ function search_namespaces(&$data,$base,$file,$type,$lvl,$opts){
  */
 function search_media(&$data,$base,$file,$type,$lvl,$opts){
   //we do nothing with directories
-  if($type == 'd') return false;
+  if($type == 'd') {
+    return ($opts['recursive']);
+  }
 
   $info         = array();
   $info['id']   = pathID($file,true);
+  if($info['id'] != cleanID($info['id'])){
+    if($opts['showmsg'])
+      msg(hsc($info['id']).' is not a valid file name for DokuWiki - skipped',-1);
+    return false; // skip non-valid files
+  }
 
   //check ACL for namespace (we have no ACL for mediafiles)
   if(auth_quickaclcheck(getNS($info['id']).':*') < AUTH_READ){
@@ -234,13 +227,14 @@ function search_media(&$data,$base,$file,$type,$lvl,$opts){
 function search_list(&$data,$base,$file,$type,$lvl,$opts){
   //we do nothing with directories
   if($type == 'd') return false;
-  if(preg_match('#\.txt$#',$file)){
+  //only search txt files
+  if(substr($file,-4) == '.txt'){
     //check ACL
     $id = pathID($file);
     if(auth_quickaclcheck($id) < AUTH_READ){
       return false;
     }
-    $data[]['id'] = $id;;
+    $data[]['id'] = $id;
   }
   return false;
 }
@@ -256,7 +250,7 @@ function search_pagename(&$data,$base,$file,$type,$lvl,$opts){
   //we do nothing with directories
   if($type == 'd') return true;
   //only search txt files
-  if(!preg_match('#\.txt$#',$file)) return true;
+  if(substr($file,-4) != '.txt') return true;
 
   //simple stringmatching
   if (!empty($opts['query'])){
@@ -281,7 +275,7 @@ function search_allpages(&$data,$base,$file,$type,$lvl,$opts){
   //we do nothing with directories
   if($type == 'd') return true;
   //only search txt files
-  if(!preg_match('#\.txt$#',$file)) return true;
+  if(substr($file,-4) != '.txt') return true;
 
   $data[]['id'] = pathID($file);
   return true;
@@ -298,9 +292,9 @@ function search_allpages(&$data,$base,$file,$type,$lvl,$opts){
  */
 function search_backlinks(&$data,$base,$file,$type,$lvl,$opts){
   //we do nothing with directories
-  if($type == 'd') return true;;
+  if($type == 'd') return true;
   //only search txt files
-  if(!preg_match('#\.txt$#',$file)) return true;;
+  if(substr($file,-4) != '.txt') return true;
 
   //absolute search id
   $sid = cleanID($opts['ns'].':'.$opts['name']);
@@ -345,9 +339,9 @@ function search_backlinks(&$data,$base,$file,$type,$lvl,$opts){
  */
 function search_fulltext(&$data,$base,$file,$type,$lvl,$opts){
   //we do nothing with directories
-  if($type == 'd') return true;;
+  if($type == 'd') return true;
   //only search txt files
-  if(!preg_match('#\.txt$#',$file)) return true;;
+  if(substr($file,-4) != '.txt') return true;
 
   //check ACL
   $id = pathID($file);
@@ -414,7 +408,7 @@ function search_reference(&$data,$base,$file,$type,$lvl,$opts){
   if($type == 'd') return true;
 
   //only search txt files
-  if(!preg_match('#\.txt$#',$file)) return true;
+  if(substr($file,-4) != '.txt') return true;
 
   //we finish after 'cnt' references found. The return value
   //'false' will skip subdirectories to speed search up.

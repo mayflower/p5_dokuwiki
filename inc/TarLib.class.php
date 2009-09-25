@@ -67,6 +67,7 @@ class TarLib
   var $_memdat;
   var $_nomf;
   var $_result;
+  var $_initerror;
 
   /**
    * constructor, initialize the class
@@ -100,6 +101,7 @@ class TarLib
    */
   function tarlib($p_filen = ARCHIVE_DYNAMIC , $p_comptype = COMPRESS_AUTO, $p_complevel = 9)
   {
+    $this->_initerror = 0;
     $this->_nomf = $p_filen; $flag=0;
     if($p_comptype && $p_comptype % 5 == 0){$p_comptype /= ARCHIVE_RENAMECOMP; $flag=1;}
 
@@ -116,12 +118,12 @@ class TarLib
     switch($p_comptype)
     {
       case COMPRESS_GZIP:
-        if(!extension_loaded('zlib')) $this->_result = -1;
+        if(!extension_loaded('zlib')) $this->_initerror = -1;
         $this->_comptype = COMPRESS_GZIP;
       break;
 
       case COMPRESS_BZIP:
-        if(!extension_loaded('bz2')) $this->_result = -2;
+        if(!extension_loaded('bz2')) $this->_inierror = -2;
         $this->_comptype = COMPRESS_BZIP;
       break;
 
@@ -138,7 +140,7 @@ class TarLib
         $this->_comptype = COMPRESS_NONE;
     }
 
-    if($this->_result < 0) $this->_comptype = COMPRESS_NONE;
+    if($this->_init_error < 0) $this->_comptype = COMPRESS_NONE;
 
     if($flag) $this->_nomf.= '.'.$this->getCompression(1);
     $this->_result = true;
@@ -822,7 +824,7 @@ $p_add, $p_rem);
 
   function _extractList($p_to, $p_files, $p_remdir, $p_mode = 0755)
   {
-    if (!$p_to || ($p_to[0]!="/"&&substr($p_to,0,3)!="../"&&substr($p_to,1,3)!=":\\")) /*" // <- PHP Coder bug */
+    if (!$p_to || ($p_to[0]!="/"&&substr($p_to,0,3)!="../"&&substr($p_to,1,2)!=":\\")) /*" // <- PHP Coder bug */
       $p_to = "./$p_to";
 
     if ($p_remdir && substr($p_remdir,-1)!='/') $p_remdir .= '/';
@@ -895,7 +897,7 @@ $p_add, $p_rem);
 function _dirApp($d)
   {
 //  map to dokuwiki function (its more robust)
-    return ap_mkdir($d);
+    return io_mkdir_p($d);
 /*
     $d = explode('/', $d);
     $base = '';

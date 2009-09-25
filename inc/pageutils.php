@@ -55,20 +55,20 @@ function getID($param='id',$clean=true){
 
   // Namespace autolinking from URL
   if(substr($id,-1) == ':' || ($conf['useslash'] && substr($id,-1) == '/')){
-    if(@file_exists(wikiFN($id.$conf['start']))){
+    if(page_exists($id.$conf['start'])){
       // start page inside namespace
       $id = $id.$conf['start'];
-    }elseif(@file_exists(wikiFN($id.noNS(cleanID($id))))){
+    }elseif(page_exists($id.noNS(cleanID($id)))){
       // page named like the NS inside the NS
       $id = $id.noNS(cleanID($id));
-    }elseif(@file_exists(wikiFN($id))){
+    }elseif(page_exists($id)){
       // page like namespace exists
       $id = substr($id,0,-1);
     }else{
       // fall back to default
       $id = $id.$conf['start'];
     }
-    header("Location: ".wl($id,'',true));
+    send_redirect(wl($id,'',true));
   }
 
   if($clean) $id = cleanID($id);
@@ -86,8 +86,9 @@ function getID($param='id',$clean=true){
  * @author Andreas Gohr <andi@splitbrain.org>
  * @param  string  $raw_id    The pageid to clean
  * @param  boolean $ascii     Force ASCII
+ * @param  boolean $media     Allow leading or trailing _ for media files
  */
-function cleanID($raw_id,$ascii=false){
+function cleanID($raw_id,$ascii=false,$media=false){
   global $conf;
   global $lang;
   static $sepcharpat = null;
@@ -96,15 +97,15 @@ function cleanID($raw_id,$ascii=false){
   $cache = & $cache_cleanid;
 
   // check if it's already in the memory cache
-  if (isset($cache[$raw_id])) {
-    return $cache[$raw_id];
+  if (isset($cache[(string)$raw_id])) {
+    return $cache[(string)$raw_id];
     }
 
   $sepchar = $conf['sepchar'];
   if($sepcharpat == null) // build string only once to save clock cycles
     $sepcharpat = '#\\'.$sepchar.'+#';
 
-  $id = trim($raw_id);
+  $id = trim((string)$raw_id);
   $id = utf8_strtolower($id);
 
   //alternative namespace seperator
@@ -126,10 +127,10 @@ function cleanID($raw_id,$ascii=false){
   //clean up
   $id = preg_replace($sepcharpat,$sepchar,$id);
   $id = preg_replace('#:+#',':',$id);
-  $id = trim($id,':._-');
+  $id = ($media ? trim($id,':.-') : trim($id,':._-'));
   $id = preg_replace('#:[:\._\-]+#',':',$id);
 
-  $cache[$raw_id] = $id;
+  $cache[(string)$raw_id] = $id;
   return($id);
 }
 
@@ -139,9 +140,9 @@ function cleanID($raw_id,$ascii=false){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function getNS($id){
-  $pos = strrpos($id,':');
+  $pos = strrpos((string)$id,':');
   if($pos!==false){
-    return substr($id,0,$pos);
+    return substr((string)$id,0,$pos);
   }
   return false;
 }
@@ -161,19 +162,19 @@ function noNS($id) {
 }
 
 /**
-* Returns the current namespace
-*
-* @author Nathan Fritz <fritzn@crown.edu>
-*/
+ * Returns the current namespace
+ *
+ * @author Nathan Fritz <fritzn@crown.edu>
+ */
 function curNS($id) {
     return noNS(getNS($id));
 }
 
 /**
-* Returns the ID without the namespace or current namespace for 'start' pages
-*
-* @author Nathan Fritz <fritzn@crown.edu>
-*/
+ * Returns the ID without the namespace or current namespace for 'start' pages
+ *
+ * @author Nathan Fritz <fritzn@crown.edu>
+ */
 function noNSorNS($id) {
     global $conf;
 
@@ -188,10 +189,55 @@ function noNSorNS($id) {
 }
 
 /**
- * returns the full path to the datafile specified by ID and
- * optional revision
+ * Creates a XHTML valid linkid from a given headline title
+ *
+ * @param string  $title   The headline title
+ * @param array   $check   List of existing IDs
+ * @author Andreas Gohr <andi@splitbrain.org>
+ */
+function sectionID($title,&$check) {
+    $title = str_replace(':','',cleanID($title));
+    $new = ltrim($title,'0123456789._-');
+    if(empty($new)){
+        $title = 'section'.preg_replace('/[^0-9]+/','',$title); //keep numbers from headline
+    }else{
+        $title = $new;
+    }
+
+    if(is_array($check)){
+        // make sure tiles are unique
+        $num = '';
+        while(in_array($title.$num,$check)){
+            ($num) ? $num++ : $num = 1;
+        }
+        $title = $title.$num;
+        $check[] = $title;
+    }
+
+    return $title;
+}
+
+
+/**
+ *  Wiki page existence check
+ *
+ *  parameters as for wikiFN
+ *
+ *  @author Chris Smith <chris@jalakai.co.uk>
+ */
+function page_exists($id,$rev='',$clean=true) {
+  return @file_exists(wikiFN($id,$rev,$clean));
+}
+
+/**
+ * returns the full path to the datafile specified by ID and optional revision
  *
  * The filename is URL encoded to protect Unicode chars
+ *
+ * @param  $raw_id  string   id of wikipage
+ * @param  $rev     string   page revision, empty string for current
+ * @param  $clean   bool     flag indicating that $raw_id should be cleaned.  Only set to false
+ *                           when $id is guaranteed to have been cleaned already.
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
@@ -264,7 +310,8 @@ function metaFN($id,$ext){
  */
 function metaFiles($id){
    $name   = noNS($id);
-   $dir    = metaFN(getNS($id),'');
+   $ns     = getNS($id);
+   $dir    = ($ns) ? metaFN($ns,'').'/' : metaFN($ns,'');
    $files  = array();
 
    $dh = @opendir($dir);
@@ -321,6 +368,11 @@ function localeFN($id){
  * @author <bart at mediawave dot nl>
  */
 function resolve_id($ns,$id,$clean=true){
+  global $conf;
+
+  // some pre cleaning for useslash:
+  if($conf['useslash']) $id = str_replace('/',':',$id);
+
   // if the id starts with a dot we need to handle the
   // relative stuff
   if($id{0} == '.'){
@@ -389,15 +441,15 @@ function resolve_pageid($ns,&$page,&$exists){
 
   // if ends with colon or slash we have a namespace link
   if(substr($page,-1) == ':' || ($conf['useslash'] && substr($page,-1) == '/')){
-    if(@file_exists(wikiFN($page.$conf['start']))){
+    if(page_exists($page.$conf['start'])){
       // start page inside namespace
       $page = $page.$conf['start'];
       $exists = true;
-    }elseif(@file_exists(wikiFN($page.noNS(cleanID($page))))){
+    }elseif(page_exists($page.noNS(cleanID($page)))){
       // page named like the NS inside the NS
       $page = $page.noNS(cleanID($page));
       $exists = true;
-    }elseif(@file_exists(wikiFN($page))){
+    }elseif(page_exists($page)){
       // page like namespace exists
       $page = $page;
       $exists = true;
@@ -414,7 +466,7 @@ function resolve_pageid($ns,&$page,&$exists){
         }else{
           $try = $page.'s';
         }
-        if(@file_exists(wikiFN($try))){
+        if(page_exists($try)){
           $page   = $try;
           $exists = true;
         }
@@ -457,7 +509,9 @@ function getCacheName($data,$ext=''){
  */
 function isHiddenPage($id){
   global $conf;
+  global $ACT;
   if(empty($conf['hidepages'])) return false;
+  if($ACT == 'admin') return false;
 
   if(preg_match('/'.$conf['hidepages'].'/ui',':'.$id)){
     return true;
@@ -480,7 +534,7 @@ function isVisiblePage($id){
  * @author   Simon Willison <swillison@gmail.com>
  * @link     http://simon.incutio.com/archive/2003/04/23/conditionalGet
  * @param    timestamp $timestamp lastmodified time of the cache file
- * @returns  void or void with previously header() commands executed
+ * @returns  void or exits with previously header() commands executed
  */
 function http_conditionalRequest($timestamp){
   // A PHP implementation of conditional get, see
@@ -518,7 +572,53 @@ function http_conditionalRequest($timestamp){
 
   // Nothing has changed since their last request - serve a 304 and exit
   header('HTTP/1.0 304 Not Modified');
+
+  // don't produce output, even if compression is on
+  ob_end_clean();
   exit;
 }
 
+/**
+ * Let the webserver send the given file vi x-sendfile method
+ *
+ * @author Chris Smith <chris.eureka@jalakai.co.uk>
+ * @returns  void or exits with previously header() commands executed
+ */
+function http_sendfile($file) {
+  global $conf;
+
+  //use x-sendfile header to pass the delivery to compatible webservers
+  if($conf['xsendfile'] == 1){
+    header("X-LIGHTTPD-send-file: $file");
+    ob_end_clean();
+    exit;
+  }elseif($conf['xsendfile'] == 2){
+    header("X-Sendfile: $file");
+    ob_end_clean();
+    exit;
+  }elseif($conf['xsendfile'] == 3){
+    header("X-Accel-Redirect: $file");
+    ob_end_clean();
+    exit;
+  }
+
+  return false;
+}
+
+/**
+ * Check for a gzipped version and create if necessary
+ *
+ * return true if there exists a gzip version of the uncompressed file
+ * (samepath/samefilename.sameext.gz) created after the uncompressed file
+ *
+ * @author Chris Smith <chris.eureka@jalakai.co.uk>
+ */
+function http_gzip_valid($uncompressed_file) {
+  $gzip = $uncompressed_file.'.gz';
+  if (filemtime($gzip) < filemtime($uncompressed_file)) {    // filemtime returns false (0) if file doesn't exist
+    return copy($uncompressed_file, 'compress.zlib://'.$gzip);
+  }
+
+  return true;
+}
 //Setup VIM: ex: et ts=2 enc=utf-8 :

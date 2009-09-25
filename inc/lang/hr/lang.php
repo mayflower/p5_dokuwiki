@@ -120,7 +120,7 @@ $lang['summary']    = 'Sažetak izmjena';
 $lang['mail_newpage'] = 'stranica dodana:';
 $lang['mail_changed'] = 'stranica kreirana:';
 
-$lang['nosmblinks'] = 'Linkovi na share-ane foldere rade samo s Internet Explorerom. ';
+$lang['js']['nosmblinks'] = "Linkovi na share-ane foldere rade samo s Internet Explorerom. ";
 
 $lang['qb_alert']   = 'Unesite tekst kojeg želite formatirati.\nBiti će dodan na kraju dokumenta.';
 $lang['qb_bold']    = 'Podebljani tekst';
@@ -145,13 +145,6 @@ $lang['qb_chars']   = 'Posebni znakovi';
 
 $lang['del_confirm']= 'Jeste li sigurni da ćelite obrisati?';
 $lang['admin_register']= 'Dodavanje korisnika';
-
-$lang['spell_start'] = 'Provjerite ispravnost teksta';
-$lang['spell_stop']  = 'Nastavite s izmjenama';
-$lang['spell_wait']  = 'Pričekajte trenutak...';
-$lang['spell_noerr'] = 'Nema grešaka';
-$lang['spell_nosug'] = 'Nema prijedloga';
-$lang['spell_change']= 'Izmjena';
 
 $lang['metaedit']    = 'Izmjena metapodataka';
 $lang['metasaveerr'] = 'Izmjena metapodataka nije uspjela';

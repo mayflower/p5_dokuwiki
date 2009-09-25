@@ -10,8 +10,15 @@
   }
   define('DOKU_START_TIME', delta_time());
 
+  global $config_cascade;
+  $config_cascade = '';
+
+  // if available load a preload config file
+  $preload = fullpath(dirname(__FILE__)).'/preload.php';
+  if (@file_exists($preload)) include($preload);
+
   // define the include path
-  if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../').'/');
+  if(!defined('DOKU_INC')) define('DOKU_INC',fullpath(dirname(__FILE__).'/../').'/');
 
   // define config path (packagers may want to change this to /etc/dokuwiki/)
   if(!defined('DOKU_CONF')) define('DOKU_CONF',DOKU_INC.'conf/');
@@ -20,8 +27,15 @@
   if (!defined('DOKU_E_LEVEL') && @file_exists(DOKU_CONF.'report_e_all')) {
     define('DOKU_E_LEVEL', E_ALL);
   }
-  if (!defined('DOKU_E_LEVEL')) { error_reporting(E_ALL ^ E_NOTICE); }
-  else { error_reporting(DOKU_E_LEVEL); }
+  if (!defined('DOKU_E_LEVEL')) {
+    if(defined('E_DEPRECATED')){ // since php 5.3
+      error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED);
+    }else{
+      error_reporting(E_ALL ^ E_NOTICE);
+    }
+  } else {
+    error_reporting(DOKU_E_LEVEL);
+  }
 
   // init memory caches
   global $cache_revinfo;  $cache_revinfo = array();
@@ -30,15 +44,64 @@
   global $cache_authname; $cache_authname = array();
   global $cache_metadata; $cache_metadata = array();
 
+  //set the configuration cascade - but only if its not already been set in preload.php
+  if (empty($config_cascade)) {
+    $config_cascade = array(
+      'main' => array(
+        'default'   => array(DOKU_CONF.'dokuwiki.php'),
+        'local'     => array(DOKU_CONF.'local.php'),
+        'protected' => array(DOKU_CONF.'local.protected.php'),
+      ),
+      'acronyms'  => array(
+        'default'   => array(DOKU_CONF.'acronyms.conf'),
+        'local'     => array(DOKU_CONF.'acronyms.local.conf'),
+      ),
+      'entities'  => array(
+        'default'   => array(DOKU_CONF.'entities.conf'),
+        'local'     => array(DOKU_CONF.'entities.local.conf'),
+      ),
+      'interwiki' => array(
+        'default'   => array(DOKU_CONF.'interwiki.conf'),
+        'local'     => array(DOKU_CONF.'interwiki.local.conf'),
+      ),
+      'license' => array(
+        'default'   => array(DOKU_CONF.'license.php'),
+        'local'     => array(DOKU_CONF.'license.local.php'),
+      ),
+      'mediameta' => array(
+        'default'   => array(DOKU_CONF.'mediameta.php'),
+        'local'     => array(DOKU_CONF.'mediameta.local.php'),
+      ),
+      'mime'      => array(
+        'default'   => array(DOKU_CONF.'mime.conf'),
+        'local'     => array(DOKU_CONF.'mime.local.conf'),
+      ),
+      'scheme'    => array(
+        'default'   => array(DOKU_CONF.'scheme.conf'),
+        'local'     => array(DOKU_CONF.'scheme.local.conf'),
+      ),
+      'smileys'   => array(
+        'default'   => array(DOKU_CONF.'smileys.conf'),
+        'local'     => array(DOKU_CONF.'smileys.local.conf'),
+      ),
+      'wordblock' => array(
+        'default'   => array(DOKU_CONF.'wordblock.conf'),
+        'local'     => array(DOKU_CONF.'wordblock.local.conf'),
+      ),
+    );
+  }
+
   //prepare config array()
   global $conf;
-  if (!defined('DOKU_UNITTEST')) {
-    $conf = array();
+  $conf = array();
 
-    // load the config file(s)
-    require_once(DOKU_CONF.'dokuwiki.php');
-    if(@file_exists(DOKU_CONF.'local.php')){
-      require_once(DOKU_CONF.'local.php');
+  // load the global config file(s)
+  foreach (array('default','local','protected') as $config_group) {
+    if (empty($config_cascade['main'][$config_group])) continue;
+    foreach ($config_cascade['main'][$config_group] as $config_file) {
+      if (@file_exists($config_file)) {
+        include($config_file);
+      }
     }
   }
 
@@ -52,15 +115,23 @@
     require_once(DOKU_INC.'inc/lang/'.$conf['lang'].'/lang.php');
   }
 
+  //prepare license array()
+  global $license;
+  $license = array();
+
+  // load the license file(s)
+  foreach (array('default','local') as $config_group) {
+    if (empty($config_cascade['license'][$config_group])) continue;
+    foreach ($config_cascade['license'][$config_group] as $config_file) {
+      if(@file_exists($config_file)){
+        include($config_file);
+      }
+    }
+  }
+
   // define baseURL
   if(!defined('DOKU_REL')) define('DOKU_REL',getBaseURL(false));
-  if(!defined('DOKU_URL')) {
-    if (strstr(getBaseURL(true), 'dokuwiki')) {
-      define('DOKU_URL',dirname(getBaseURL(true)).'/');
-    } else {
-      define('DOKU_URL',getBaseURL(true));
-    }
-  } 
+  if(!defined('DOKU_URL')) define('DOKU_URL',getBaseURL(true));
   if(!defined('DOKU_BASE')){
     if($conf['canonical']){
       define('DOKU_BASE',DOKU_URL);
@@ -69,9 +140,12 @@
     }
   }
 
+  // define whitespace
+  if(!defined('DOKU_LF')) define ('DOKU_LF',"\n");
+  if(!defined('DOKU_TAB')) define ('DOKU_TAB',"\t");
 
   // define cookie and session id
-  if (!defined('DOKU_COOKIE')) define('DOKU_COOKIE', 'DW'.md5(DOKU_URL));
+  if (!defined('DOKU_COOKIE')) define('DOKU_COOKIE', 'DW'.md5(DOKU_REL));
 
   // define Plugin dir
   if(!defined('DOKU_PLUGIN'))  define('DOKU_PLUGIN',DOKU_INC.'lib/plugins/');
@@ -93,19 +167,32 @@
   // make sure global zlib does not interfere FS#1132
   @ini_set('zlib.output_compression', 'off');
 
-  // enable gzip compression
+  // increase PCRE backtrack limit
+  @ini_set('pcre.backtrack_limit', '20971520');
+
+  // enable gzip compression if supported
+  $conf['gzip_output'] &= (strpos($_SERVER['HTTP_ACCEPT_ENCODING'],'gzip') !== false);
   if ($conf['gzip_output'] &&
       !defined('DOKU_DISABLE_GZIP_OUTPUT') &&
-      function_exists('ob_gzhandler') &&
-      preg_match('/gzip|deflate/', $_SERVER['HTTP_ACCEPT_ENCODING'])) {
+      function_exists('ob_gzhandler')) {
     ob_start('ob_gzhandler');
   }
 
   // init session
   if (!headers_sent() && !defined('NOSESSION')){
     session_name("DokuWiki");
-    session_set_cookie_params(0, DOKU_REL);
+    if (version_compare(PHP_VERSION, '5.2.0', '>')) {
+      session_set_cookie_params(0,DOKU_REL,'',($conf['securecookie'] && is_ssl()),true);
+    }else{
+      session_set_cookie_params(0,DOKU_REL,'',($conf['securecookie'] && is_ssl()));
+    }
     session_start();
+
+    // load left over messages
+    if(isset($_SESSION[DOKU_COOKIE]['msg'])){
+      $MSG = $_SESSION[DOKU_COOKIE]['msg'];
+      unset($_SESSION[DOKU_COOKIE]['msg']);
+    }
   }
 
   // kill magic quotes
@@ -123,12 +210,20 @@
   // don't let cookies ever interfere with request vars
   $_REQUEST = array_merge($_GET,$_POST);
 
+  // we don't want a purge URL to be digged
+  if($_REQUEST['purge'] && $_SERVER['HTTP_REFERER']) unset($_REQUEST['purge']);
+
   // disable gzip if not available
   if($conf['compression'] == 'bz2' && !function_exists('bzopen')){
     $conf['compression'] = 'gz';
   }
   if($conf['compression'] == 'gz' && !function_exists('gzopen')){
     $conf['compression'] = 0;
+  }
+
+  // fix dateformat for upgraders
+  if(strpos($conf['dformat'],'%') === false){
+    $conf['dformat'] = '%Y/%m/%d %H:%M';
   }
 
   // precalculate file creation modes
@@ -155,7 +250,8 @@ function init_paths(){
                  'metadir'   => 'meta',
                  'cachedir'  => 'cache',
                  'indexdir'  => 'index',
-                 'lockdir'   => 'locks');
+                 'lockdir'   => 'locks',
+                 'tmpdir'    => 'tmp');
 
   foreach($paths as $c => $p){
     if(empty($conf[$c]))  $conf[$c] = $conf['savedir'].'/'.$p;
@@ -171,6 +267,7 @@ function init_paths(){
   if ($conf['changelog_old']=='') { unset($conf['changelog_old']); }
   // hardcoded changelog because it is now a cache that lives in meta
   $conf['changelog'] = $conf['metadir'].'/_dokuwiki.changes';
+  $conf['media_changelog'] = $conf['metadir'].'/_media.changes';
 }
 
 /**
@@ -204,9 +301,9 @@ function init_files(){
  */
 function init_path($path){
   // check existance
-  $p = realpath($path);
+  $p = fullpath($path);
   if(!@file_exists($p)){
-    $p = realpath(DOKU_INC.$path);
+    $p = fullpath(DOKU_INC.$path);
     if(!@file_exists($p)){
       return '';
     }
@@ -263,11 +360,20 @@ function init_creationmodes(){
  */
 function remove_magic_quotes(&$array) {
   foreach (array_keys($array) as $key) {
-    if (is_array($array[$key])) {
-      remove_magic_quotes($array[$key]);
-    }else {
-      $array[$key] = stripslashes($array[$key]);
-    }
+      // handle magic quotes in keynames (breaks order)
+      $sk = stripslashes($key);
+      if($sk != $key){
+          $array[$sk] = $array[$key];
+          unset($array[$key]);
+          $key = $sk;
+      }
+
+      // do recursion if needed
+      if (is_array($array[$key])) {
+          remove_magic_quotes($array[$key]);
+      }else {
+          $array[$key] = stripslashes($array[$key]);
+      }
   }
 }
 
@@ -283,21 +389,21 @@ function getBaseURL($abs=null){
   if(is_null($abs)) $abs = $conf['canonical'];
 
   if($conf['basedir']){
-    $dir = $conf['basedir'].'/';
+    $dir = $conf['basedir'];
   }elseif(substr($_SERVER['SCRIPT_NAME'],-4) == '.php'){
-    $dir = dirname($_SERVER['SCRIPT_NAME']).'/';
+    $dir = dirname($_SERVER['SCRIPT_NAME']);
   }elseif(substr($_SERVER['PHP_SELF'],-4) == '.php'){
-    $dir = dirname($_SERVER['PHP_SELF']).'/';
+    $dir = dirname($_SERVER['PHP_SELF']);
   }elseif($_SERVER['DOCUMENT_ROOT'] && $_SERVER['SCRIPT_FILENAME']){
     $dir = preg_replace ('/^'.preg_quote($_SERVER['DOCUMENT_ROOT'],'/').'/','',
                          $_SERVER['SCRIPT_FILENAME']);
-    $dir = dirname('/'.$dir).'/';
+    $dir = dirname('/'.$dir);
   }else{
-    $dir = './'; //probably wrong
+    $dir = '.'; //probably wrong
   }
 
-  $dir = str_replace('\\','/',$dir); #bugfix for weird WIN behaviour
-  $dir = preg_replace('#//+#','/',$dir);
+  $dir = str_replace('\\','/',$dir);             // bugfix for weird WIN behaviour
+  $dir = preg_replace('#//+#','/',"/$dir/");     // ensure leading and trailing slashes
 
   //handle script in lib/exe dir
   $dir = preg_replace('!lib/exe/$!','',$dir);
@@ -308,17 +414,15 @@ function getBaseURL($abs=null){
   //finish here for relative URLs
   if(!$abs) return $dir;
 
-  //use config option if available
-  if($conf['baseurl']) return $conf['baseurl'].$dir;
+  //use config option if available, trim any slash from end of baseurl to avoid multiple consecutive slashes in the path
+  if($conf['baseurl']) return rtrim($conf['baseurl'],'/').$dir;
 
   //split hostheader into host and port
   list($host,$port) = explode(':',$_SERVER['HTTP_HOST']);
   if(!$port)  $port = $_SERVER['SERVER_PORT'];
   if(!$port)  $port = 80;
 
-  // see if HTTPS is enabled - apache leaves this empty when not available,
-  // IIS sets it to 'off', 'false' and 'disabled' are just guessing
-  if (preg_match('/^(|off|false|disabled)$/i',$_SERVER['HTTPS'])){
+  if(!is_ssl()){
     $proto = 'http://';
     if ($port == '80') {
       $port='';
@@ -333,6 +437,22 @@ function getBaseURL($abs=null){
   if($port) $port = ':'.$port;
 
   return $proto.$host.$port.$dir;
+}
+
+/**
+ * Check if accessed via HTTPS
+ *
+ * Apache leaves ,$_SERVER['HTTPS'] empty when not available, IIS sets it to 'off'.
+ * 'false' and 'disabled' are just guessing
+ *
+ * @returns bool true when SSL is active
+ */
+function is_ssl(){
+    if (preg_match('/^(|off|false|disabled)$/i',$_SERVER['HTTPS'])){
+        return false;
+    }else{
+        return true;
+    }
 }
 
 /**
@@ -392,6 +512,69 @@ function nice_die($msg){
 EOT;
   exit;
 }
+
+
+/**
+ * A realpath() replacement
+ *
+ * This function behaves similar to PHP's realpath() but does not resolve
+ * symlinks or accesses upper directories
+ *
+ * @author Andreas Gohr <andi@splitbrain.org>
+ * @author <richpageau at yahoo dot co dot uk>
+ * @link   http://de3.php.net/manual/en/function.realpath.php#75992
+ */
+function fullpath($path,$exists=false){
+    static $run = 0; 
+    $root  = '';
+    $iswin = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' || @$GLOBALS['DOKU_UNITTEST_ASSUME_WINDOWS']);
+
+    // find the (indestructable) root of the path - keeps windows stuff intact
+    if($path{0} == '/'){
+        $root = '/';
+    }elseif($iswin){
+        // match drive letter and UNC paths
+        if(preg_match('!^([a-zA-z]:)(.*)!',$path,$match)){
+            $root = $match[1].'/';
+            $path = $match[2];
+        }else if(preg_match('!^(\\\\\\\\[^\\\\/]+\\\\[^\\\\/]+[\\\\/])(.*)!',$path,$match)){
+            $root = $match[1];
+            $path = $match[2];
+        }
+    }
+    $path = str_replace('\\','/',$path);
+
+    // if the given path wasn't absolute already, prepend the script path and retry
+    if(!$root){
+        $base = dirname($_SERVER['SCRIPT_FILENAME']);
+        $path = $base.'/'.$path;
+        if($run == 0){ // avoid endless recursion when base isn't absolute for some reason
+            $run++;
+            return fullpath($path,$exists);
+        }
+    }
+    $run = 0;
+
+    // canonicalize
+    $path=explode('/', $path);
+    $newpath=array();
+    foreach($path as $p) {
+        if ($p === '' || $p === '.') continue;
+           if ($p==='..') {
+              array_pop($newpath);
+              continue;
+        }
+        array_push($newpath, $p);
+    }
+    $finalpath = $root.implode('/', $newpath);
+
+    // check for existance when needed (except when unit testing)
+    if($exists && !defined('DOKU_UNITTEST') && !@file_exists($finalpath)) {
+        return false;
+    }
+    return $finalpath;
+}
+
 
 
 //Setup VIM: ex: et ts=2 enc=utf-8 :

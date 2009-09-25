@@ -8,23 +8,34 @@
  * You should leave the doctype at the very top - It should
  * always be the very first line of a document.
  *
- * @link   http://wiki.splitbrain.org/wiki:tpl:templates
+ * @link   http://dokuwiki.org/templates
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 
 // must be run from within DokuWiki
 if (!defined('DOKU_INC')) die();
 
-
-/*
- tpl_pagetitle();
- echo "[" .strip_tags($conf['title']) . "]";
-*/
 ?>
-<br />
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<?php echo $conf['lang']?>"
+ lang="<?php echo $conf['lang']?>" dir="<?php echo $lang['direction']?>">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <title>
+    <?php tpl_pagetitle()?>
+    [<?php echo strip_tags($conf['title'])?>]
+  </title>
 
-<?php tpl_onlyjs();?>
+  <?php tpl_metaheaders()?>
 
+  <link rel="shortcut icon" href="<?php echo DOKU_TPL?>images/favicon.ico" />
+
+  <?php /*old includehook*/ @include(dirname(__FILE__).'/meta.html')?>
+</head>
+
+<body>
+<?php /*old includehook*/ @include(dirname(__FILE__).'/topheader.html')?>
 <div class="dokuwiki">
   <?php html_msgarea()?>
 
@@ -32,10 +43,10 @@ if (!defined('DOKU_INC')) die();
 
     <div class="header">
       <div class="pagename">
-        [[<?php tpl_link(wl($ID,'do=backlink'),tpl_pagetitle($ID,true))?>]]
+        [[<?php tpl_link(wl($ID,'do=backlink'),tpl_pagetitle($ID,true),'title="'.$lang['btn_backlink'].'"')?>]]
       </div>
       <div class="logo">
-        <?php tpl_link(wl(),$conf['title'],'name="dokuwiki__top" id="dokuwiki__top" accesskey="h" title="[ALT+H]"')?>
+        <?php tpl_link(wl(),$conf['title'],'name="dokuwiki__top" id="dokuwiki__top" accesskey="h" title="[H]"')?>
       </div>
 
       <div class="clearer"></div>
@@ -104,7 +115,8 @@ if (!defined('DOKU_INC')) die();
         <?php tpl_button('history')?>
       </div>
       <div class="bar-right" id="bar__bottomright">
-        <?php tpl_button('subscription')?>
+        <?php tpl_button('subscribe')?>
+        <?php tpl_button('subscribens')?>
         <?php tpl_button('admin')?>
         <?php tpl_button('profile')?>
         <?php tpl_button('login')?>
@@ -116,6 +128,11 @@ if (!defined('DOKU_INC')) die();
 
   </div>
 
+  <?php tpl_license(false);?>
+
 </div>
+<?php /*old includehook*/ @include(dirname(__FILE__).'/footer.html')?>
 
 <div class="no"><?php /* provide DokuWiki housekeeping, required in all templates */ tpl_indexerWebBug()?></div>
+</body>
+</html>

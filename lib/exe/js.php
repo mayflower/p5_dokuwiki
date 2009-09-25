@@ -6,9 +6,10 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../').'/');
+if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/../../');
 if(!defined('NOSESSION')) define('NOSESSION',true); // we do not use a session or authentication here (better caching)
 if(!defined('NL')) define('NL',"\n");
+if(!defined('DOKU_DISABLE_GZIP_OUTPUT')) define('DOKU_DISABLE_GZIP_OUTPUT',1); // we gzip ourself here
 require_once(DOKU_INC.'inc/init.php');
 require_once(DOKU_INC.'inc/pageutils.php');
 require_once(DOKU_INC.'inc/io.php');
@@ -35,7 +36,7 @@ function js_out(){
     $write = (bool) $_REQUEST['write'];  // writable?
 
     // The generated script depends on some dynamic options
-    $cache = getCacheName('scripts'.$edit.'x'.$write,'.js');
+    $cache = getCacheName('scripts'.$_SERVER['HTTP_HOST'].$_SERVER['SERVER_PORT'].$edit.'x'.$write,'.js');
 
     // Array of needed files
     $files = array(
@@ -45,13 +46,11 @@ function js_out(){
                 DOKU_INC.'lib/scripts/script.js',
                 DOKU_INC.'lib/scripts/tw-sack.js',
                 DOKU_INC.'lib/scripts/ajax.js',
+                DOKU_INC.'lib/scripts/index.js',
              );
     if($edit){
         if($write){
             $files[] = DOKU_INC.'lib/scripts/edit.js';
-            if($conf['spellchecker']){
-                $files[] = DOKU_INC.'lib/scripts/spellcheck.js';
-            }
         }
         $files[] = DOKU_INC.'lib/scripts/media.js';
     }
@@ -66,7 +65,16 @@ function js_out(){
     if(js_cacheok($cache,array_merge($files,$plugins))){
         http_conditionalRequest(filemtime($cache));
         if($conf['allowdebug']) header("X-CacheUsed: $cache");
-        readfile($cache);
+
+        // finally send output
+        if ($conf['gzip_output'] && http_gzip_valid($cache)) {
+          header('Vary: Accept-Encoding');
+          header('Content-Encoding: gzip');
+          readfile($cache.".gz");
+        } else {
+          if (!http_sendfile($cache)) readfile($cache);
+        }
+
         return;
     } else {
         http_conditionalRequest(time());
@@ -76,13 +84,16 @@ function js_out(){
     ob_start();
 
     // add some global variables
-    print "var DOKU_BASE   = '".DOKU_BASE.basename(DOKU_INC).'/'."';";
+    print "var DOKU_BASE   = '".DOKU_BASE."';";
     print "var DOKU_TPL    = '".DOKU_TPL."';";
 
     //FIXME: move thes into LANG
     print "var alertText   = '".js_escape($lang['qb_alert'])."';";
     print "var notSavedYet = '".js_escape($lang['notsavedyet'])."';";
     print "var reallyDel   = '".js_escape($lang['del_confirm'])."';";
+
+    // load JS strings form plugins
+    $lang['js']['plugins'] = js_pluginstrings();
 
     // load JS specific translations
     $json = new JSON();
@@ -114,17 +125,6 @@ function js_out(){
 
             // add lock timer
             js_runonstart("locktimer.init(".($conf['locktime'] - 60).",'".js_escape($lang['willexpire'])."',".$conf['usedraft'].")");
-
-            // load spell checker
-            if($conf['spellchecker']){
-                js_runonstart("ajax_spell.init('".
-                               js_escape($lang['spell_start'])."','".
-                               js_escape($lang['spell_stop'])."','".
-                               js_escape($lang['spell_wait'])."','".
-                               js_escape($lang['spell_noerr'])."','".
-                               js_escape($lang['spell_nosug'])."','".
-                               js_escape($lang['spell_change'])."')");
-            }
         }
     }
 
@@ -141,7 +141,6 @@ function js_out(){
     @readfile(DOKU_CONF.'userscript.js');
 
     // add scroll event and tooltip rewriting
-    js_runonstart('updateAccessKeyTooltip()');
     js_runonstart('scrollToMarker()');
     js_runonstart('focusMarker()');
 
@@ -158,9 +157,16 @@ function js_out(){
 
     // save cache file
     io_saveFile($cache,$js);
+    copy($cache,"compress.zlib://$cache.gz");
 
     // finally send output
-    print $js;
+    if ($conf['gzip_output']) {
+      header('Vary: Accept-Encoding');
+      header('Content-Encoding: gzip');
+      print gzencode($js,9,FORCE_GZIP);
+    } else {
+      print $js;
+    }
 }
 
 /**
@@ -207,8 +213,7 @@ function js_cacheok($cache,$files){
     if(!$ctime) return false; //There is no cache
 
     // some additional files to check
-    $files[] = DOKU_CONF.'dokuwiki.php';
-    $files[] = DOKU_CONF.'local.php';
+    $files = array_merge($files, getConfigFiles('main'));
     $files[] = DOKU_CONF.'userscript.js';
     $files[] = __FILE__;
 
@@ -233,6 +238,34 @@ function js_pluginscripts(){
         $list[] = DOKU_PLUGIN."$p/script.js";
     }
     return $list;
+}
+
+/**
+ * Return an two-dimensional array with strings from the language file of each plugin.
+ *
+ * - $lang['js'] must be an array.
+ * - Nothing is returned for plugins without an entry for $lang['js']
+ *
+ * @author Gabriel Birke <birke@d-scribe.de>
+ */
+function js_pluginstrings()
+{
+    global $conf;
+    $pluginstrings = array();
+    $plugins = plugin_list();
+    foreach ($plugins as $p){
+        if (isset($lang)) unset($lang);
+        if (@file_exists(DOKU_PLUGIN."$p/lang/en/lang.php")) {
+            include DOKU_PLUGIN."$p/lang/en/lang.php";
+        }
+        if (isset($conf['lang']) && $conf['lang']!='en' && @file_exists(DOKU_PLUGIN."$p/lang/".$conf['lang']."/lang.php")) {
+            include DOKU_PLUGIN."$p/lang/".$conf['lang']."/lang.php";
+        }
+        if (isset($lang['js'])) {
+            $pluginstrings[$p] = $lang['js'];
+        }
+    }
+    return $pluginstrings;
 }
 
 /**

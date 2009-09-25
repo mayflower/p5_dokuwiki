@@ -1,7 +1,5 @@
 <?php
-
-if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../').'/');
-
+if(!defined('DOKU_INC')) die('meh.');
 require_once DOKU_INC . 'inc/parser/lexer.php';
 require_once DOKU_INC . 'inc/parser/handler.php';
 
@@ -34,7 +32,7 @@ $PARSER_MODES = array(
 
     // modes which have a start and end token but inside which
     // no other modes should be applied
-    'protected'    => array('preformatted','code','file','php','html'),
+    'protected'    => array('preformatted','code','file','php','html','htmlblock','phpblock'),
 
     // inside this mode no wiki markup should be applied but lineendings
     // and whitespace isn't preserved
@@ -156,7 +154,7 @@ class Doku_Parser_Mode {
     function postConnect() {}
 
     function accepts($mode) {
-        return in_array($mode, $this->allowedModes );
+        return in_array($mode, (array) $this->allowedModes );
     }
 
 }
@@ -310,7 +308,7 @@ class Doku_Parser_Mode_formatting extends Doku_Parser_Mode {
             ),
 
         'emphasis'=> array (
-            'entry'=>'//(?=[^\x00]*[^:]//)', //hack for bug #384
+            'entry'=>'//(?=[^\x00]*[^:])', //hack for bugs #384 #763 #1468
             'exit'=>'//',
             'sort'=>80
             ),
@@ -489,10 +487,12 @@ class Doku_Parser_Mode_php extends Doku_Parser_Mode {
 
     function connectTo($mode) {
         $this->Lexer->addEntryPattern('<php>(?=.*</php>)',$mode,'php');
+        $this->Lexer->addEntryPattern('<PHP>(?=.*</PHP>)',$mode,'phpblock');
     }
 
     function postConnect() {
         $this->Lexer->addExitPattern('</php>','php');
+        $this->Lexer->addExitPattern('</PHP>','phpblock');
     }
 
     function getSort() {
@@ -505,10 +505,12 @@ class Doku_Parser_Mode_html extends Doku_Parser_Mode {
 
     function connectTo($mode) {
         $this->Lexer->addEntryPattern('<html>(?=.*</html>)',$mode,'html');
+        $this->Lexer->addEntryPattern('<HTML>(?=.*</HTML>)',$mode,'htmlblock');
     }
 
     function postConnect() {
         $this->Lexer->addExitPattern('</html>','html');
+        $this->Lexer->addExitPattern('</HTML>','htmlblock');
     }
 
     function getSort() {
@@ -648,7 +650,7 @@ class Doku_Parser_Mode_smiley extends Doku_Parser_Mode {
 
         $sep = '';
         foreach ( $this->smileys as $smiley ) {
-            $this->pattern .= $sep.Doku_Lexer_Escape($smiley);
+            $this->pattern .= $sep.'(?<=\W|^)'.Doku_Lexer_Escape($smiley).'(?=\W|$)';
             $sep = '|';
         }
     }
@@ -841,7 +843,7 @@ class Doku_Parser_Mode_rss extends Doku_Parser_Mode {
 
 //-------------------------------------------------------------------
 class Doku_Parser_Mode_externallink extends Doku_Parser_Mode {
-    var $schemes = array('http','https','telnet','gopher','wais','ftp','ed2k','irc','ldap');
+    var $schemes = array();
     var $patterns = array();
 
     function preConnect() {
@@ -853,13 +855,13 @@ class Doku_Parser_Mode_externallink extends Doku_Parser_Mode {
         $host = $ltrs.$punc;
         $any  = $ltrs.$gunk.$punc;
 
+        $this->schemes = getSchemes();
         foreach ( $this->schemes as $scheme ) {
             $this->patterns[] = '\b(?i)'.$scheme.'(?-i)://['.$any.']+?(?=['.$punc.']*[^'.$any.'])';
         }
 
         $this->patterns[] = '\b(?i)www?(?-i)\.['.$host.']+?\.['.$host.']+?['.$any.']+?(?=['.$punc.']*[^'.$any.'])';
         $this->patterns[] = '\b(?i)ftp?(?-i)\.['.$host.']+?\.['.$host.']+?['.$any.']+?(?=['.$punc.']*[^'.$any.'])';
-
     }
 
     function connectTo($mode) {

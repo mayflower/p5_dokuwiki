@@ -5,7 +5,7 @@
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
-if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../').'/');
+if(!defined('DOKU_INC')) die('meh.');
 if(!defined('DOKU_MESSAGEURL')) define('DOKU_MESSAGEURL','http://update.dokuwiki.org/check/');
 require_once(DOKU_INC.'inc/HTTPClient.php');
 
@@ -89,6 +89,20 @@ function check(){
     msg('PHP version '.phpversion(),1);
   }
 
+  $mem = (int) php_to_byte(ini_get('memory_limit'));
+  if($mem){
+    if($mem < 16777216){
+        msg('PHP is limited to less than 16MB RAM ('.$mem.' bytes). Increase memory_limit in php.ini',-1);
+    }elseif($mem < 20971520){
+        msg('PHP is limited to less than 20MB RAM ('.$mem.' bytes), you might encounter problems with bigger pages. Increase memory_limit in php.ini',-1);
+    }elseif($mem < 33554432){
+        msg('PHP is limited to less than 32MB RAM ('.$mem.' bytes), but that should be enough in most cases. If not, increase memory_limit in php.ini',0);
+    }else{
+        msg('More than 32MB RAM ('.$mem.' bytes) available.',1);
+    }
+  }
+
+
   if(is_writable($conf['changelog'])){
     msg('Changelog is writable',1);
   }else{
@@ -142,10 +156,12 @@ function check(){
     msg('Lockdir is not writable',-1);
   }
 
-  if(is_writable(DOKU_CONF.'users.auth.php')){
-    msg('conf/users.auth.php is writable',1);
-  }else{
-    msg('conf/users.auth.php is not writable',0);
+  if($conf['authtype'] == 'plain'){
+    if(is_writable(DOKU_CONF.'users.auth.php')){
+      msg('conf/users.auth.php is writable',1);
+    }else{
+      msg('conf/users.auth.php is not writable',0);
+    }
   }
 
   if(function_exists('mb_strpos')){
@@ -153,6 +169,9 @@ function check(){
       msg('mb_string extension is available but will not be used',0);
     }else{
       msg('mb_string extension is available and will be used',1);
+      if(ini_get('mbstring.func_overload') != 0){
+        msg('mb_string function overloading is enabled, this will cause problems and should be disabled',-1);
+      }
     }
   }else{
     msg('mb_string extension not available - PHP only replacements will be used',0);
@@ -165,11 +184,8 @@ function check(){
   }
 
   if($INFO['userinfo']['name']){
-    global $auth;
-    msg('You are currently logged in as '.$_SESSION[DOKU_COOKIE]['auth']['user'].' ('.$INFO['userinfo']['name'].')',0);
-
-    $info = $auth->getUserData($_SESSION[DOKU_COOKIE]['auth']['user']);
-    msg('You are part of the groups '.implode($info['grps'],', '),0);
+    msg('You are currently logged in as '.$_SERVER['REMOTE_USER'].' ('.$INFO['userinfo']['name'].')',0);
+    msg('You are part of the groups '.join($INFO['userinfo']['grps'],', '),0);
   }else{
     msg('You are currently not logged in',0);
   }
@@ -186,6 +202,23 @@ function check(){
     msg('The current page is writable by you',0);
   }else{
     msg('The current page is not writable by you',0);
+  }
+
+  require_once(DOKU_INC.'inc/HTTPClient.php');
+  $check = wl('','',true).'data/_dummy';
+  $http = new DokuHTTPClient();
+  $http->timeout = 6;
+  $res = $http->get($check);
+  if(strpos($res,'data directory') !== false){
+    msg('It seems like the data directory is accessible from the web.
+         Make sure this directory is properly protected
+         (See <a href="http://www.dokuwiki.org/security">security</a>)',-1);
+  }elseif($http->status == 404 || $http->status == 403){
+    msg('The data directory seems to be properly protected',1);
+  }else{
+    msg('Failed to check if the data directory is accessible from the web.
+         Make sure this directory is properly protected
+         (See <a href="http://www.dokuwiki.org/security">security</a>)',-1);
   }
 }
 
@@ -249,6 +282,10 @@ function dbg($msg,$hidden=false){
  */
 function dbglog($msg){
   global $conf;
+  if(is_object($msg) || is_array($msg)){
+    $msg = print_r($msg,true);
+  }
+
   $file = $conf['cachedir'].'/debug.log';
   $fh = fopen($file,'a');
   if($fh){
@@ -303,3 +340,20 @@ function dbg_backtrace(){
   return implode("\n", $calls);
 }
 
+/**
+ * Remove all data from an array where the key seems to point to sensitive data
+ *
+ * This is used to remove passwords, mail addresses and similar data from the
+ * debug output
+ *
+ * @author Andreas Gohr <andi@splitbrain.org>
+ */
+function debug_guard(&$data){
+    foreach($data as $key => $value){
+        if(preg_match('/(notify|pass|auth|secret|ftp|userinfo|token|buid|mail|proxy)/i',$key)){
+            $data[$key] = '***';
+            continue;
+        }
+        if(is_array($value)) debug_guard($data[$key]);
+    }
+}

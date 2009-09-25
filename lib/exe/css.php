@@ -6,8 +6,9 @@
  * @author     Andreas Gohr <andi@splitbrain.org>
  */
 
-if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__).'/../../').'/');
+if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/../../');
 if(!defined('NOSESSION')) define('NOSESSION',true); // we do not use a session or authentication here (better caching)
+if(!defined('DOKU_DISABLE_GZIP_OUTPUT')) define('DOKU_DISABLE_GZIP_OUTPUT',1); // we gzip ourself here
 require_once(DOKU_INC.'inc/init.php');
 require_once(DOKU_INC.'inc/pageutils.php');
 require_once(DOKU_INC.'inc/io.php');
@@ -41,15 +42,24 @@ function css_out(){
         break;
     }
 
+    $tpl = trim(preg_replace('/[^\w-]+/','',$_REQUEST['t']));
+    if($tpl){
+        $tplinc = DOKU_INC.'lib/tpl/'.$tpl.'/';
+        $tpldir = DOKU_BASE.'lib/tpl/'.$tpl.'/';
+    }else{
+        $tplinc = DOKU_TPLINC;
+        $tpldir = DOKU_TPL;
+    }
+
     // The generated script depends on some dynamic options
-    $cache = getCacheName('styles'.$conf['template'].$style,'.css');
+    $cache = getCacheName('styles'.$_SERVER['HTTP_HOST'].$_SERVER['SERVER_PORT'].DOKU_BASE.$tplinc.$style,'.css');
 
     // load template styles
     $tplstyles = array();
-    if(@file_exists(DOKU_TPLINC.'style.ini')){
-        $ini = parse_ini_file(DOKU_TPLINC.'style.ini',true);
+    if(@file_exists($tplinc.'style.ini')){
+        $ini = parse_ini_file($tplinc.'style.ini',true);
         foreach($ini['stylesheets'] as $file => $mode){
-            $tplstyles[$mode][DOKU_TPLINC.$file] = DOKU_TPL;
+            $tplstyles[$mode][$tplinc.$file] = $tpldir;
         }
     }
 
@@ -58,15 +68,15 @@ function css_out(){
     $files   = array();
     //if (isset($tplstyles['all'])) $files = array_merge($files, $tplstyles['all']);
     if(!empty($style)){
-        $files[DOKU_INC.'lib/styles/'.$style.'.css'] = DOKU_BASE.basename(DOKU_INC).'/'.'lib/styles/';
+        $files[DOKU_INC.'lib/styles/'.$style.'.css'] = DOKU_BASE.'lib/styles/';
         // load plugin, template, user styles
         $files = array_merge($files, css_pluginstyles($style));
         if (isset($tplstyles[$style])) $files = array_merge($files, $tplstyles[$style]);
-        $files[DOKU_CONF.'user'.$style.'.css'] = '';
+        $files[DOKU_CONF.'user'.$style.'.css'] = DOKU_BASE;
     }else{
-        $files[DOKU_INC.'lib/styles/style.css'] = DOKU_BASE.basename(DOKU_INC).'/'.'lib/styles/';
+        $files[DOKU_INC.'lib/styles/style.css'] = DOKU_BASE.'lib/styles/';
         if($conf['spellchecker']){
-            $files[DOKU_INC.'lib/styles/spellcheck.css'] = DOKU_BASE.basename(DOKU_INC).'/'.'lib/styles/';
+            $files[DOKU_INC.'lib/styles/spellcheck.css'] = DOKU_BASE.'lib/styles/';
         }
         // load plugin, template, user styles
         $files = array_merge($files, css_pluginstyles('screen'));
@@ -74,16 +84,25 @@ function css_out(){
         if($lang['direction'] == 'rtl'){
             if (isset($tplstyles['rtl'])) $files = array_merge($files, $tplstyles['rtl']);
         }
-        $files[DOKU_CONF.'userstyle.css'] = '';
+        $files[DOKU_CONF.'userstyle.css'] = DOKU_BASE;
     }
 
     // check cache age & handle conditional request
     header('Cache-Control: public, max-age=3600');
     header('Pragma: public');
-    if(css_cacheok($cache,array_keys($files))){
+    if(css_cacheok($cache,array_keys($files),$tplinc)){
         http_conditionalRequest(filemtime($cache));
         if($conf['allowdebug']) header("X-CacheUsed: $cache");
-        readfile($cache);
+
+        // finally send output
+        if ($conf['gzip_output'] && http_gzip_valid($cache)) {
+          header('Vary: Accept-Encoding');
+          header('Content-Encoding: gzip');
+          readfile($cache.".gz");
+        } else {
+          if (!http_sendfile($cache)) readfile($cache);
+        }
+
         return;
     } else {
         http_conditionalRequest(time());
@@ -106,7 +125,7 @@ function css_out(){
     ob_end_clean();
 
     // apply style replacements
-    $css = css_applystyle($css);
+    $css = css_applystyle($css,$tplinc);
 
     // compress whitespace and comments
     if($conf['compress']){
@@ -115,9 +134,16 @@ function css_out(){
 
     // save cache file
     io_saveFile($cache,$css);
+    copy($cache,"compress.zlib://$cache.gz");
 
     // finally send output
-    print $css;
+    if ($conf['gzip_output']) {
+      header('Vary: Accept-Encoding');
+      header('Content-Encoding: gzip');
+      print gzencode($css,9,FORCE_GZIP);
+    } else {
+      print $css;
+    }
 }
 
 /**
@@ -125,16 +151,17 @@ function css_out(){
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function css_cacheok($cache,$files){
+function css_cacheok($cache,$files,$tplinc){
+    global $config_cascade;
+
     if($_REQUEST['purge']) return false; //support purge request
 
     $ctime = @filemtime($cache);
     if(!$ctime) return false; //There is no cache
 
     // some additional files to check
-    $files[] = DOKU_CONF.'dokuwiki.php';
-    $files[] = DOKU_CONF.'local.php';
-    $files[] = DOKU_TPLINC.'style.ini';
+    $files = array_merge($files, getConfigFiles('main'));
+    $files[] = $tplinc.'style.ini';
     $files[] = __FILE__;
 
     // now walk the files
@@ -152,9 +179,9 @@ function css_cacheok($cache,$files){
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function css_applystyle($css){
-    if(@file_exists(DOKU_TPLINC.'style.ini')){
-        $ini = parse_ini_file(DOKU_TPLINC.'style.ini',true);
+function css_applystyle($css,$tplinc){
+    if(@file_exists($tplinc.'style.ini')){
+        $ini = parse_ini_file($tplinc.'style.ini',true);
         $css = strtr($css,$ini['replacements']);
     }
     return $css;
@@ -175,7 +202,7 @@ function css_interwiki(){
 
     // default style
     echo 'a.interwiki {';
-    echo ' background: transparent url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/interwiki.png) 0px 1px no-repeat;';
+    echo ' background: transparent url('.DOKU_BASE.'lib/images/interwiki.png) 0px 1px no-repeat;';
     echo ' padding-left: 16px;';
     echo '}';
 
@@ -185,11 +212,11 @@ function css_interwiki(){
         $class = preg_replace('/[^_\-a-z0-9]+/i','_',$iw);
         if(@file_exists(DOKU_INC.'lib/images/interwiki/'.$iw.'.png')){
             echo "a.iw_$class {";
-            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/interwiki/'.$iw.'.png)';
+            echo '  background-image: url('.DOKU_BASE.'lib/images/interwiki/'.$iw.'.png)';
             echo '}';
         }elseif(@file_exists(DOKU_INC.'lib/images/interwiki/'.$iw.'.gif')){
             echo "a.iw_$class {";
-            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/interwiki/'.$iw.'.gif)';
+            echo '  background-image: url('.DOKU_BASE.'lib/images/interwiki/'.$iw.'.gif)';
             echo '}';
         }
     }
@@ -204,7 +231,7 @@ function css_filetypes(){
 
     // default style
     echo 'a.mediafile {';
-    echo ' background: transparent url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/fileicons/file.png) 0px 1px no-repeat;';
+    echo ' background: transparent url('.DOKU_BASE.'lib/images/fileicons/file.png) 0px 1px no-repeat;';
     echo ' padding-left: 18px;';
     echo ' padding-bottom: 1px;';
     echo '}';
@@ -215,11 +242,11 @@ function css_filetypes(){
         $class = preg_replace('/[^_\-a-z0-9]+/i','_',$mime);
         if(@file_exists(DOKU_INC.'lib/images/fileicons/'.$mime.'.png')){
             echo "a.mf_$class {";
-            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/fileicons/'.$mime.'.png)';
+            echo '  background-image: url('.DOKU_BASE.'lib/images/fileicons/'.$mime.'.png)';
             echo '}';
         }elseif(@file_exists(DOKU_INC.'lib/images/fileicons/'.$mime.'.gif')){
             echo "a.mf_$class {";
-            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/'.'lib/images/fileicons/'.$mime.'.gif)';
+            echo '  background-image: url('.DOKU_BASE.'lib/images/fileicons/'.$mime.'.gif)';
             echo '}';
         }
     }
@@ -250,17 +277,17 @@ function css_pluginstyles($mode='screen'){
     $plugins = plugin_list();
     foreach ($plugins as $p){
         if($mode == 'all'){
-            $list[DOKU_PLUGIN."$p/all.css"]  = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/all.css"]  = DOKU_BASE."lib/plugins/$p/";
         }elseif($mode == 'print'){
-            $list[DOKU_PLUGIN."$p/print.css"]  = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/print.css"]  = DOKU_BASE."lib/plugins/$p/";
         }elseif($mode == 'feed'){
-            $list[DOKU_PLUGIN."$p/feed.css"]  = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/feed.css"]  = DOKU_BASE."lib/plugins/$p/";
         }else{
-            $list[DOKU_PLUGIN."$p/style.css"]  = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
-            $list[DOKU_PLUGIN."$p/screen.css"] = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/style.css"]  = DOKU_BASE."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/screen.css"] = DOKU_BASE."lib/plugins/$p/";
         }
         if($lang['direction'] == 'rtl'){
-            $list[DOKU_PLUGIN."$p/rtl.css"] = DOKU_BASE.basename(DOKU_INC).'/'."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/rtl.css"] = DOKU_BASE."lib/plugins/$p/";
         }
     }
     return $list;

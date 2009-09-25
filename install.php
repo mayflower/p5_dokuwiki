@@ -5,7 +5,7 @@
  *  @author      Chris Smith <chris@jalakai.co.uk>
  */
 
-if(!defined('DOKU_INC')) define('DOKU_INC',realpath(dirname(__FILE__)).'/');
+if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/');
 if(!defined('DOKU_CONF')) define('DOKU_CONF',DOKU_INC.'conf/');
 if(!defined('DOKU_LOCAL')) define('DOKU_LOCAL',DOKU_INC.'conf/');
 
@@ -43,6 +43,8 @@ $dokuwiki_hash = array(
     '2006-11-06'   => 'b3a8af76845977c2000d85d6990dd72b',
     '2007-05-24'   => 'd80f2740c84c4a6a791fd3c7a353536f',
     '2007-06-26'   => 'b3ca19c7a654823144119980be73cd77',
+    '2008-05-04'   => '1e5c42eac3219d9e21927c39e3240aad',
+    'rc2009-02-06' => 'ec8c04210732a14fdfce0f7f6eead865',
 );
 
 
@@ -86,7 +88,7 @@ header('Content-Type: text/html; charset=utf-8');
 </head>
 <body style="">
     <h1 style="float:left">
-        <img src="http://wiki.splitbrain.org/_media/wiki:dokuwiki-64.png"
+        <img src="lib/exe/fetch.php?media=wiki:dokuwiki-128.png&w=64"
              style="vertical-align: middle;" alt="" />
         <?php echo $lang['i_installer']?>
     </h1>
@@ -133,7 +135,7 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
 
 <div style="clear: both">
-  <a href="http://wiki.splitbrain.org/wiki:dokuwiki"><img src="lib/tpl/default/images/button-dw.png" alt="driven by DokuWiki" /></a>
+  <a href="http://dokuwiki.org/"><img src="lib/tpl/default/images/button-dw.png" alt="driven by DokuWiki" /></a>
   <a href="http://www.php.net"><img src="lib/tpl/default/images/button-php.gif" alt="powered by PHP" /></a>
 </div>
 </body>
@@ -200,9 +202,11 @@ function print_form($d){
 
 function print_retry() {
   global $lang;
+  global $LC;
 ?>
     <form action="" method="get">
       <fieldset>
+        <input type="hidden" name="l" value="<?php echo $LC ?>" />
         <input class="button" type="submit" value="<?php echo $lang['i_retry'];?>" />
       </fieldset>
     </form>
@@ -396,6 +400,7 @@ function check_permissions(){
         'cache'     => DOKU_INC.'data/cache',
         'locks'     => DOKU_INC.'data/locks',
         'index'     => DOKU_INC.'data/index',
+        'tmp'       => DOKU_INC.'data/tmp'
     );
 
     $ok = true;
@@ -429,7 +434,7 @@ function check_functions(){
                          'glob header ignore_user_abort ini_get mail mkdir '.
                          'ob_start opendir parse_ini_file readfile realpath '.
                          'rename rmdir serialize session_start unlink usleep '.
-                         'preg_replace');
+                         'preg_replace file_get_contents');
 
     if (!function_exists('mb_substr')) {
       $funcs[] = 'utf8_encode';

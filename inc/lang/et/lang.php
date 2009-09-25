@@ -70,12 +70,7 @@ $lang['qb_strike'] = 'Läbijoonitud tekst';
 $lang['qb_smileys'] = 'Emotikonid';
 $lang['qb_chars'] = 'Erisümbolid';
 $lang['admin_register'] = 'Lisa kasutaja';
-$lang['spell_start'] = 'Kontrolli õigekirja';
-$lang['spell_stop'] = 'Jätka toimetamist';
-$lang['spell_wait'] = 'Palun oota...';
-$lang['spell_noerr'] = 'Vigu ei leitud';
-$lang['spell_nosug'] = 'Soovitusi ei ole';
-$lang['spell_change'] = 'Muuda';
+
 
 #$lang['reference'] = '';
 #$lang['btn_backlink'] = '';
@@ -116,7 +111,7 @@ $lang['i_enableacl'] = 'Kas lubada kasutajate haldus (soovitatav)';
 $lang['i_superuser'] = 'Superkasutaja';
 $lang['i_problems'] = 'Paigaldaja leidis mõned vead, mis on allpool välja toodud. Enne vigade eemaldamist ei saa jätkata.';
 $lang['i_modified'] = 'Õnnetuste vältimiseks läheb see skript käima ainult värskelt paigaldatud ja muutmata Dokuwiki peal.
-                       Sa peaksid ilmselt kogu koodi uuesti lahti pakkima. Vaata ka <a href="http://wiki.splitbrain.org/wiki:install">Dokuwiki installeerimis juhendit</a>';
+                       Sa peaksid ilmselt kogu koodi uuesti lahti pakkima. Vaata ka <a href="http://dokuwiki.org/install">Dokuwiki installeerimis juhendit</a>';
 $lang['i_funcna'] = 'PHP funktsiooni <code>%s</code> ei ole olemas.võibolla sinu serveri hooldaja on selle mingil põhjusel keelanud?';
 $lang['i_permfail'] = 'Dokuwiki ei saa kirjutada faili <code>%s</code>. Kontrolli serveris failide õigused üle.';
 $lang['i_confexists'] = '<code>%s</code> on juba olemas';
