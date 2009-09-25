@@ -364,16 +364,16 @@ function wl($id='',$more='',$abs=false,$sep='&amp;'){
 
   if($conf['userewrite'] == 2){
     $xlink .= DOKU_SCRIPT.'/'.$id;
-    if($more) $xlink .= '?'.$more;
+    if($more) $xlink .= '&'.$more;
   }elseif($conf['userewrite']){
     $xlink .= $id;
-    if($more) $xlink .= '?'.$more;
+    if($more) $xlink .= '&'.$more;
   }elseif($id){
-    $xlink .= DOKU_SCRIPT.'?id='.$id;
+    $xlink .= DOKU_SCRIPT.'&id='.$id;
     if($more) $xlink .= $sep.$more;
   }else{
     $xlink .= DOKU_SCRIPT;
-    if($more) $xlink .= '?'.$more;
+    if($more) $xlink .= '&'.$more;
   }
 
   return $xlink;
@@ -403,13 +403,13 @@ function exportlink($id='',$format='raw',$more='',$abs=false,$sep='&amp;'){
   }
 
   if($conf['userewrite'] == 2){
-    $xlink .= DOKU_SCRIPT.'/'.$id.'?do=export_'.$format;
+    $xlink .= DOKU_SCRIPT.'/'.$id.'&do=export_'.$format;
     if($more) $xlink .= $sep.$more;
   }elseif($conf['userewrite'] == 1){
     $xlink .= '_export/'.$format.'/'.$id;
-    if($more) $xlink .= '?'.$more;
+    if($more) $xlink .= '&'.$more;
   }else{
-    $xlink .= DOKU_SCRIPT.'?do=export_'.$format.$sep.'id='.$id;
+    $xlink .= DOKU_SCRIPT.'&do=export_'.$format.$sep.'id='.$id;
     if($more) $xlink .= $sep.$more;
   }
 
@@ -455,7 +455,7 @@ function ml($id='',$more='',$direct=true,$sep='&amp;',$abs=false){
   if(preg_match('#^(https?|ftp)://#i',$id)){
     $xlink .= 'lib/exe/fetch.php';
     if($more){
-      $xlink .= '?'.$more;
+      $xlink .= '&'.$more;
       $xlink .= $sep.'media='.rawurlencode($id);
     }else{
       $xlink .= '?media='.rawurlencode($id);
@@ -483,13 +483,13 @@ function ml($id='',$more='',$direct=true,$sep='&amp;',$abs=false){
   // build URL based on rewrite mode
    if($conf['userewrite']){
      $xlink .= $script.'/'.$id;
-     if($more) $xlink .= '?'.$more;
+     if($more) $xlink .= '&'.$more;
    }else{
      if($more){
-       $xlink .= $script.'?'.$more;
+       $xlink .= $script.'&'.$more;
        $xlink .= $sep.'media='.$id;
      }else{
-       $xlink .= $script.'?media='.$id;
+       $xlink .= $script.'&media='.$id;
      }
    }
 

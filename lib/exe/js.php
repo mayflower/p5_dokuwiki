@@ -84,7 +84,7 @@ function js_out(){
     ob_start();
 
     // add some global variables
-    print "var DOKU_BASE   = '".DOKU_BASE."';";
+    print "var DOKU_BASE   = '".DOKU_BASE.basename(DOKU_INC)."/';";
     print "var DOKU_TPL    = '".DOKU_TPL."';";
 
     //FIXME: move thes into LANG

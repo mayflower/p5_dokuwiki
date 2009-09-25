@@ -202,7 +202,7 @@ function css_interwiki(){
 
     // default style
     echo 'a.interwiki {';
-    echo ' background: transparent url('.DOKU_BASE.'lib/images/interwiki.png) 0px 1px no-repeat;';
+    echo ' background: transparent url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/interwiki.png) 0px 1px no-repeat;';
     echo ' padding-left: 16px;';
     echo '}';
 
@@ -212,11 +212,11 @@ function css_interwiki(){
         $class = preg_replace('/[^_\-a-z0-9]+/i','_',$iw);
         if(@file_exists(DOKU_INC.'lib/images/interwiki/'.$iw.'.png')){
             echo "a.iw_$class {";
-            echo '  background-image: url('.DOKU_BASE.'lib/images/interwiki/'.$iw.'.png)';
+            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/interwiki/'.$iw.'.png)';
             echo '}';
         }elseif(@file_exists(DOKU_INC.'lib/images/interwiki/'.$iw.'.gif')){
             echo "a.iw_$class {";
-            echo '  background-image: url('.DOKU_BASE.'lib/images/interwiki/'.$iw.'.gif)';
+            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/interwiki/'.$iw.'.gif)';
             echo '}';
         }
     }
@@ -231,7 +231,7 @@ function css_filetypes(){
 
     // default style
     echo 'a.mediafile {';
-    echo ' background: transparent url('.DOKU_BASE.'lib/images/fileicons/file.png) 0px 1px no-repeat;';
+    echo ' background: transparent url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/fileicons/file.png) 0px 1px no-repeat;';
     echo ' padding-left: 18px;';
     echo ' padding-bottom: 1px;';
     echo '}';
@@ -242,11 +242,11 @@ function css_filetypes(){
         $class = preg_replace('/[^_\-a-z0-9]+/i','_',$mime);
         if(@file_exists(DOKU_INC.'lib/images/fileicons/'.$mime.'.png')){
             echo "a.mf_$class {";
-            echo '  background-image: url('.DOKU_BASE.'lib/images/fileicons/'.$mime.'.png)';
+            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/fileicons/'.$mime.'.png)';
             echo '}';
         }elseif(@file_exists(DOKU_INC.'lib/images/fileicons/'.$mime.'.gif')){
             echo "a.mf_$class {";
-            echo '  background-image: url('.DOKU_BASE.'lib/images/fileicons/'.$mime.'.gif)';
+            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/fileicons/'.$mime.'.gif)';
             echo '}';
         }
     }
@@ -277,17 +277,17 @@ function css_pluginstyles($mode='screen'){
     $plugins = plugin_list();
     foreach ($plugins as $p){
         if($mode == 'all'){
-            $list[DOKU_PLUGIN."$p/all.css"]  = DOKU_BASE."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/all.css"]  = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
         }elseif($mode == 'print'){
-            $list[DOKU_PLUGIN."$p/print.css"]  = DOKU_BASE."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/print.css"]  = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
         }elseif($mode == 'feed'){
-            $list[DOKU_PLUGIN."$p/feed.css"]  = DOKU_BASE."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/feed.css"]  = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
         }else{
-            $list[DOKU_PLUGIN."$p/style.css"]  = DOKU_BASE."lib/plugins/$p/";
-            $list[DOKU_PLUGIN."$p/screen.css"] = DOKU_BASE."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/style.css"]  = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/screen.css"] = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
         }
         if($lang['direction'] == 'rtl'){
-            $list[DOKU_PLUGIN."$p/rtl.css"] = DOKU_BASE."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/rtl.css"] = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
         }
     }
     return $list;
