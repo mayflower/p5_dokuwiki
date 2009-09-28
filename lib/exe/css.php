@@ -41,6 +41,10 @@ function css_out(){
             $style = '';
         break;
     }
+    $subdir = '';
+    if (isset($conf['modulename'])) {
+        $subdir = $conf['modulename'].'/';
+    }
 
     $tpl = trim(preg_replace('/[^\w-]+/','',$_REQUEST['t']));
     if($tpl){
@@ -70,7 +74,7 @@ function css_out(){
     if(!empty($style)){
         $files[DOKU_INC.'lib/styles/'.$style.'.css'] = DOKU_BASE.'lib/styles/';
         // load plugin, template, user styles
-        $files = array_merge($files, css_pluginstyles($style));
+        $files = array_merge($files, css_pluginstyles($subdir,$style));
         if (isset($tplstyles[$style])) $files = array_merge($files, $tplstyles[$style]);
         $files[DOKU_CONF.'user'.$style.'.css'] = DOKU_BASE;
     }else{
@@ -79,7 +83,7 @@ function css_out(){
             $files[DOKU_INC.'lib/styles/spellcheck.css'] = DOKU_BASE.'lib/styles/';
         }
         // load plugin, template, user styles
-        $files = array_merge($files, css_pluginstyles('screen'));
+        $files = array_merge($files, css_pluginstyles($subdir,'screen'));
         if (isset($tplstyles['screen'])) $files = array_merge($files, $tplstyles['screen']);
         if($lang['direction'] == 'rtl'){
             if (isset($tplstyles['rtl'])) $files = array_merge($files, $tplstyles['rtl']);
@@ -112,8 +116,8 @@ function css_out(){
     ob_start();
 
     // print the default classes for interwiki links and file downloads
-    css_interwiki();
-    css_filetypes();
+    css_interwiki($subdir);
+    css_filetypes($subdir);
 
     // load files
     foreach($files as $file => $location){
@@ -195,14 +199,16 @@ function css_applystyle($css,$tplinc){
  * an default style with a default icon. If a special icon is available
  * for an interwiki URL it is set in it's own class. Both classes can be
  * overwritten in the template or userstyles.
+ * 
+ * @param string subdirectory where the image will be found
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function css_interwiki(){
+function css_interwiki($subdir){
 
     // default style
     echo 'a.interwiki {';
-    echo ' background: transparent url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/interwiki.png) 0px 1px no-repeat;';
+    echo ' background: transparent url('.DOKU_BASE.$subdir.'lib/images/interwiki.png) 0px 1px no-repeat;';
     echo ' padding-left: 16px;';
     echo '}';
 
@@ -212,11 +218,11 @@ function css_interwiki(){
         $class = preg_replace('/[^_\-a-z0-9]+/i','_',$iw);
         if(@file_exists(DOKU_INC.'lib/images/interwiki/'.$iw.'.png')){
             echo "a.iw_$class {";
-            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/interwiki/'.$iw.'.png)';
+            echo '  background-image: url('.DOKU_BASE.$subdir.'lib/images/interwiki/'.$iw.'.png)';
             echo '}';
         }elseif(@file_exists(DOKU_INC.'lib/images/interwiki/'.$iw.'.gif')){
             echo "a.iw_$class {";
-            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/interwiki/'.$iw.'.gif)';
+            echo '  background-image: url('.DOKU_BASE.$subdir.'lib/images/interwiki/'.$iw.'.gif)';
             echo '}';
         }
     }
@@ -227,11 +233,11 @@ function css_interwiki(){
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function css_filetypes(){
+function css_filetypes($subdir){
 
     // default style
     echo 'a.mediafile {';
-    echo ' background: transparent url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/fileicons/file.png) 0px 1px no-repeat;';
+    echo ' background: transparent url('.DOKU_BASE.$subdir.'lib/images/fileicons/file.png) 0px 1px no-repeat;';
     echo ' padding-left: 18px;';
     echo ' padding-bottom: 1px;';
     echo '}';
@@ -242,11 +248,11 @@ function css_filetypes(){
         $class = preg_replace('/[^_\-a-z0-9]+/i','_',$mime);
         if(@file_exists(DOKU_INC.'lib/images/fileicons/'.$mime.'.png')){
             echo "a.mf_$class {";
-            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/fileicons/'.$mime.'.png)';
+            echo '  background-image: url('.DOKU_BASE.$subdir.'lib/images/fileicons/'.$mime.'.png)';
             echo '}';
         }elseif(@file_exists(DOKU_INC.'lib/images/fileicons/'.$mime.'.gif')){
             echo "a.mf_$class {";
-            echo '  background-image: url('.DOKU_BASE.basename(DOKU_INC).'/lib/images/fileicons/'.$mime.'.gif)';
+            echo '  background-image: url('.DOKU_BASE.$subdir.'lib/images/fileicons/'.$mime.'.gif)';
             echo '}';
         }
     }
@@ -271,23 +277,23 @@ function css_loadfile($file,$location=''){
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function css_pluginstyles($mode='screen'){
+function css_pluginstyles($subdir,$mode='screen'){
     global $lang;
     $list = array();
     $plugins = plugin_list();
     foreach ($plugins as $p){
         if($mode == 'all'){
-            $list[DOKU_PLUGIN."$p/all.css"]  = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/all.css"]  = DOKU_BASE.$subdir."lib/plugins/$p/";
         }elseif($mode == 'print'){
-            $list[DOKU_PLUGIN."$p/print.css"]  = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/print.css"]  = DOKU_BASE.$subdir."lib/plugins/$p/";
         }elseif($mode == 'feed'){
-            $list[DOKU_PLUGIN."$p/feed.css"]  = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/feed.css"]  = DOKU_BASE.$subdir."lib/plugins/$p/";
         }else{
-            $list[DOKU_PLUGIN."$p/style.css"]  = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
-            $list[DOKU_PLUGIN."$p/screen.css"] = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/style.css"]  = DOKU_BASE.$subdir."lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/screen.css"] = DOKU_BASE.$subdir."lib/plugins/$p/";
         }
         if($lang['direction'] == 'rtl'){
-            $list[DOKU_PLUGIN."$p/rtl.css"] = DOKU_BASE.basename(DOKU_INC)."/lib/plugins/$p/";
+            $list[DOKU_PLUGIN."$p/rtl.css"] = DOKU_BASE.$subdir."lib/plugins/$p/";
         }
     }
     return $list;

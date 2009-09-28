@@ -104,6 +104,11 @@
       }
     }
   }
+  $conf['subdir'] = '';
+  if (isset($conf['modulename'])) {
+    $conf['subdir'] = $conf['modulename'].'/';
+  }
+  if (!defined(DOKU_SUBDIR)) define('DOKU_SUBDIR', $conf['subdir']);
 
   //prepare language array
   global $lang;
@@ -155,7 +160,7 @@
 
   // define Template baseURL
   if(!defined('DOKU_TPL')) define('DOKU_TPL',
-                                  DOKU_BASE.'lib/tpl/'.$conf['template'].'/');
+                                  DOKU_BASE.$conf['subdir'].'lib/tpl/'.$conf['template'].'/');
 
   // define real Template directory
   if(!defined('DOKU_TPLINC')) define('DOKU_TPLINC',

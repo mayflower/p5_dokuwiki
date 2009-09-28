@@ -34,6 +34,7 @@ function js_out(){
     global $lang;
     $edit  = (bool) $_REQUEST['edit'];   // edit or preview mode?
     $write = (bool) $_REQUEST['write'];  // writable?
+    
 
     // The generated script depends on some dynamic options
     $cache = getCacheName('scripts'.$_SERVER['HTTP_HOST'].$_SERVER['SERVER_PORT'].$edit.'x'.$write,'.js');

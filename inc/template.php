@@ -254,7 +254,7 @@ function tpl_metaheaders($alt=true, $js=true){
   // the usual stuff
   $head['meta'][] = array( 'name'=>'generator', 'content'=>'DokuWiki '.getVersion() );
   $head['link'][] = array( 'rel'=>'search', 'type'=>'application/opensearchdescription+xml',
-                           'href'=>DOKU_BASE.basename(DOKU_INC).'/lib/exe/opensearch.php', 'title'=>$conf['title'] );
+                           'href'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/opensearch.php', 'title'=>$conf['title'] );
   $head['link'][] = array( 'rel'=>'start', 'href'=>DOKU_BASE );
   if(actionOK('index')){
     $head['link'][] = array( 'rel'=>'contents', 'href'=> wl($ID,'do=index',false,'&'),
@@ -266,7 +266,7 @@ function tpl_metaheaders($alt=true, $js=true){
                              'title'=>'Recent Changes', 'href'=>DOKU_BASE.'feed.php');
     $head['link'][] = array( 'rel'=>'alternate', 'type'=>'application/rss+xml',
                              'title'=>'Current Namespace',
-                             'href'=>DOKU_BASE.basename(DOKU_INC).'/feed.php?mode=list&ns='.$INFO['namespace']);
+                             'href'=>DOKU_BASE.DOKU_SUBDIR.'feed.php?mode=list&ns='.$INFO['namespace']);
     if(($ACT == 'show' || $ACT == 'search') && $INFO['writable']){
         $head['link'][] = array( 'rel'=>'alternate', 'type'=>'application/wiki',
                                  'title'=>$lang['btn_edit'],
@@ -276,7 +276,7 @@ function tpl_metaheaders($alt=true, $js=true){
     if($ACT == 'search'){
       $head['link'][] = array( 'rel'=>'alternate', 'type'=>'application/rss+xml',
                                'title'=>'Search Result',
-                               'href'=>DOKU_BASE.'feed.php?mode=search&q='.$QUERY);
+                               'href'=>DOKU_BASE.DOKU_SUBDIR.'feed.php?mode=search&q='.$QUERY);
     }
 
     if(actionOK('export_xhtml')){
@@ -327,11 +327,11 @@ function tpl_metaheaders($alt=true, $js=true){
 
   // load stylesheets
   $head['link'][] = array('rel'=>'stylesheet', 'media'=>'all', 'type'=>'text/css',
-                          'href'=>DOKU_BASE.basename(DOKU_INC).'/lib/exe/css.php?s=all&t='.$conf['template']);
+                          'href'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/css.php?s=all&t='.$conf['template']);
   $head['link'][] = array('rel'=>'stylesheet', 'media'=>'screen', 'type'=>'text/css',
-                          'href'=>DOKU_BASE.basename(DOKU_INC).'/lib/exe/css.php?t='.$conf['template']);
+                          'href'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/css.php?t='.$conf['template']);
   $head['link'][] = array('rel'=>'stylesheet', 'media'=>'print', 'type'=>'text/css',
-                          'href'=>DOKU_BASE.basename(DOKU_INC).'/lib/exe/css.php?s=print&t='.$conf['template']);
+                          'href'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/css.php?s=print&t='.$conf['template']);
 
   if ($js) {
       // load javascript
@@ -351,7 +351,7 @@ function tpl_metaheaders($alt=true, $js=true){
                                    '_data'=> $script);
       }
       $head['script'][] = array( 'type'=>'text/javascript', 'charset'=>'utf-8', '_data'=>'',
-                                 'src'=>DOKU_BASE.basename(DOKU_INC).'/lib/exe/js.php?edit='.$js_edit.'&write='.$js_write);
+                                 'src'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/js.php?edit='.$js_edit.'&write='.$js_write);
   }
 
   // trigger event here
@@ -1065,8 +1065,8 @@ function tpl_img($maxwidth=0,$maxheight=0){
   }
 
   //prepare URLs
-  $url=ml($IMG,array('cache'=>$_REQUEST['cache']));
-  $src=ml($IMG,array('cache'=>$_REQUEST['cache'],'w'=>$w,'h'=>$h));
+  $url=ml($IMG,array('cache'=>$_REQUEST['cache']),true, '&',false);
+  $src=ml($IMG,array('cache'=>$_REQUEST['cache'],'w'=>$w,'h'=>$h),true, '&',false);
 
   //prepare attributes
   $alt=tpl_img_getTag('Simple.Title');
@@ -1346,6 +1346,14 @@ function tpl_license($img='badge',$imgonly=false,$return=false){
  * @author Michele Catalano <michele.catalano@mayflower.de>
  */
 function tpl_onlyjs() {
+    global $ID;
+    global $REV;
+    global $INFO;
+    global $ACT;
+    global $QUERY;
+    global $lang;
+    global $conf;
+    
     // load javascript
     $js_edit  = ($ACT=='edit' || $ACT=='preview' || $ACT=='recover' || $ACT=='wordblock' ) ? 1 : 0;
     $js_write = ($INFO['writable']) ? 1 : 0;

@@ -100,7 +100,7 @@ function media_metaform($id,$auth){
 
     // output
     echo '<h1>'.hsc(noNS($id)).'</h1>'.NL;
-    echo '<form action="'.DOKU_BASE.basename(DOKU_INC).'/lib/exe/mediamanager.php" accept-charset="utf-8" method="post" class="meta">'.NL;
+    echo '<form action="'.DOKU_BASE.DOKU_SUBDIR.'lib/exe/mediamanager.php" accept-charset="utf-8" method="post" class="meta">'.NL;
     formSecurityToken();
     foreach($fields as $key => $field){
         // get current value
@@ -468,7 +468,7 @@ function media_fileactions($item,$auth){
 
     // view button
     $link = ml($item['id'],'',true);
-    echo ' <a href="'.$link.'" target="_blank"><img src="'.DOKU_BASE.basename(DOKU_INC).'/lib/images/magnifier.png" '.
+    echo ' <a href="'.$link.'" target="_blank"><img src="'.DOKU_BASE.DOKU_SUBDIR.'lib/images/magnifier.png" '.
          'alt="'.$lang['mediaview'].'" title="'.$lang['mediaview'].'" class="btn" /></a>';
 
 
@@ -477,16 +477,16 @@ function media_fileactions($item,$auth){
 
     // delete button
     if($auth >= AUTH_DELETE){
-        echo ' <a href="'.DOKU_BASE.basename(DOKU_INC).'/lib/exe/mediamanager.php?delete='.rawurlencode($item['id']).
+        echo ' <a href="'.DOKU_BASE.DOKU_SUBDIR.'lib/exe/mediamanager.php?delete='.rawurlencode($item['id']).
              '&amp;sectok='.getSecurityToken().'" class="btn_media_delete" title="'.$item['id'].'">'.
-             '<img src="'.DOKU_BASE.basename(DOKU_INC).'/lib/images/trash.png" alt="'.$lang['btn_delete'].'" '.
+             '<img src="'.DOKU_BASE.DOKU_SUBDIR.'lib/images/trash.png" alt="'.$lang['btn_delete'].'" '.
              'title="'.$lang['btn_delete'].'" class="btn" /></a>';
     }
 
     // edit button
     if($auth >= AUTH_UPLOAD && $item['isimg'] && $item['meta']->getField('File.Mime') == 'image/jpeg'){
-        echo ' <a href="'.DOKU_BASE.basename(DOKU_INC).'/lib/exe/mediamanager.php?edit='.rawurlencode($item['id']).'">'.
-             '<img src="'.DOKU_BASE.basename(DOKU_INC).'/lib/images/pencil.png" alt="'.$lang['metaedit'].'" '.
+        echo ' <a href="'.DOKU_BASE.DOKU_SUBDIR.'lib/exe/mediamanager.php?edit='.rawurlencode($item['id']).'">'.
+             '<img src="'.DOKU_BASE.DOKU_SUBDIR.'lib/images/pencil.png" alt="'.$lang['metaedit'].'" '.
              'title="'.$lang['metaedit'].'" class="btn" /></a>';
     }
 
@@ -702,7 +702,7 @@ function media_nstree_item($item){
     if(!$item['label']) $item['label'] = $label;
 
     $ret  = '';
-    $ret .= '<a href="'.DOKU_BASE.basename(DOKU_INC).'/lib/exe/mediamanager.php?ns='.idfilter($item['id']).'" class="idx_dir">';
+    $ret .= '<a href="'.DOKU_BASE.DOKU_SUBDIR.'/lib/exe/mediamanager.php?ns='.idfilter($item['id']).'" class="idx_dir">';
     $ret .= $item['label'];
     $ret .= '</a>';
     return $ret;
@@ -719,11 +719,11 @@ function media_nstree_li($item){
     $class='media level'.$item['level'];
     if($item['open']){
         $class .= ' open';
-        $img   = DOKU_BASE.basename(DOKU_INC).'/lib/images/minus.gif';
+        $img   = DOKU_BASE.DOKU_SUBDIR.'lib/images/minus.gif';
         $alt   = '&minus;';
     }else{
         $class .= ' closed';
-        $img   = DOKU_BASE.basename(DOKU_INC).'/lib/images/plus.gif';
+        $img   = DOKU_BASE.DOKU_SUBDIR.'lib/images/plus.gif';
         $alt   = '+';
     }
     return '<li class="'.$class.'">'.

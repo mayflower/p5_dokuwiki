@@ -447,15 +447,15 @@ function ml($id='',$more='',$direct=true,$sep='&amp;',$abs=false){
 
   if($abs){
     $xlink = DOKU_URL;
-  }else{
-    $xlink = DOKU_BASE;
+  }else {
+    $xlink = DOKU_BASE.DOKU_SUBDIR;
   }
 
   // external URLs are always direct without rewriting
   if(preg_match('#^(https?|ftp)://#i',$id)){
     $xlink .= 'lib/exe/fetch.php';
     if($more){
-      $xlink .= '&'.$more;
+      $xlink .= '?'.$more;
       $xlink .= $sep.'media='.rawurlencode($id);
     }else{
       $xlink .= '?media='.rawurlencode($id);
@@ -475,7 +475,10 @@ function ml($id='',$more='',$direct=true,$sep='&amp;',$abs=false){
   }else{
     if($conf['userewrite'] == 1){
       $script = '_detail';
-    }else{
+    }elseif (isset($conf['modulename'])) {
+      $xlink = DOKU_BASE.DOKU_SCRIPT;
+      $script = '&modul=detail';
+    } else {
       $script = 'lib/exe/detail.php';
     }
   }
@@ -483,13 +486,16 @@ function ml($id='',$more='',$direct=true,$sep='&amp;',$abs=false){
   // build URL based on rewrite mode
    if($conf['userewrite']){
      $xlink .= $script.'/'.$id;
-     if($more) $xlink .= '&'.$more;
+     $ssep = (strpos($xlink,'?') === FALSE) ? '?' : '&';
+     if($more) $xlink .= $ssep.$more;
    }else{
      if($more){
-       $xlink .= $script.'&'.$more;
+       $ssep = (strpos($xlink,'?') === FALSE) ? '?' : '&';
+       $xlink .= $script.$ssep.$more;
        $xlink .= $sep.'media='.$id;
      }else{
-       $xlink .= $script.'&media='.$id;
+       $ssep = (strpos($xlink,'?') === FALSE) ? '?' : '&';
+       $xlink .= $script.$ssep.'media='.$id;
      }
    }
 
