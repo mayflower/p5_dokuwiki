@@ -14,7 +14,7 @@ require_once(DOKU_INC.'inc/auth.php');
 require_once(DOKU_INC.'inc/actions.php');
 
 ob_start();
-tpl_metaheaders(false,false);
+tpl_metaheaders(true,false);
 $__headers = ob_get_contents();
 ob_end_clean();
 

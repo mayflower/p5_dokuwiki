@@ -15,6 +15,32 @@
   require_once(DOKU_INC.'inc/auth.php');
   require_once(DOKU_INC.'inc/pageutils.php');
 
+
+  // List of allowed IP's to get feed without authentication.
+  $allow_remote = array('127.0.0.1');
+  
+
+  // check if sender is in the $allow_remote array.
+  if (!in_array($_SERVER['REMOTE_ADDR'],$allow_remote)) {
+    $handle = fopen("feed_pw.csv", "r");
+    while (($data = fgetcsv($handle, 10000, ";")) !== FALSE) {
+      $userlist[$data[0]] = $data[1];
+    }
+    fclose($handle);
+    // Check if the parameter loginstring and user_pw is given.
+    if (!isset($_REQUEST['loginstring']) || !isset($_REQUEST['user_pw'])) {
+      die("You are not allowed to do that!");
+    }
+    // Generate the md5 hash from the request data.
+    $passhash = md5($_REQUEST['loginstring'].';'.$_REQUEST['user_pw']);
+    // Check if user exists in csv file and the password hash is the same.
+    if (!array_key_exists($_REQUEST['loginstring'], $userlist) ||
+        $passhash != $userlist[$_REQUEST['loginstring']]) {
+      die("You are not allowed to do that!");
+    }
+  }
+
+
   //close session
   session_write_close();
 
@@ -48,14 +74,22 @@
   // create new feed
   $rss = new DokuWikiFeedCreator();
   $rss->title = $conf['title'].(($opt['namespace']) ? ' '.$opt['namespace'] : '');
-  $rss->link  = DOKU_URL;
+  if (defined('PHPR_HOST_PATH')) {
+    $rss->link = PHPR_HOST_PATH.DOKU_BASE.DOKU_SCRIPT;
+  } else {
+    $rss->link  = DOKU_URL;
+  }
   $rss->syndicationURL = DOKU_URL.'feed.php';
   $rss->cssStyleSheet  = DOKU_URL.'lib/exe/css.php?s=feed';
 
   $image = new FeedImage();
   $image->title = $conf['title'];
   $image->url = DOKU_URL."lib/images/favicon.ico";
-  $image->link = DOKU_URL;
+  if (defined('PHPR_HOST_PATH')) {
+    $image->link = PHPR_HOST_PATH.DOKU_BASE.DOKU_SCRIPT;
+  } else {
+    $image->link  = DOKU_URL;
+  }
   $rss->image = $image;
 
   if($opt['feed_mode'] == 'list'){
@@ -165,21 +199,26 @@ function rss_buildItems(&$rss,&$data,$opt){
         if($conf['rss_show_summary'] && !empty($ditem['sum'])){
             $item->title .= ' - '.strip_tags($ditem['sum']);
         }
-
         // add item link
+        $abs = true;
+        $prefix = '';
+        if (defined('PHPR_HOST_PATH')) {
+            $abs = false;
+            $prefix = PHPR_HOST_PATH;
+        }
         switch ($opt['link_to']){
             case 'page':
-                $item->link = wl($id,'rev='.$date,true,'&');
+                $item->link = $prefix.wl($id,'rev='.$date,$abs,'&');
                 break;
             case 'rev':
-                $item->link = wl($id,'do=revisions&rev='.$date,true,'&');
+                $item->link = $prefix.wl($id,'do=revisions&rev='.$date,$abs,'&');
                 break;
             case 'current':
-                $item->link = wl($id, '', true,'&');
+                $item->link = $prefix.wl($id, '', $abs,'&');
                 break;
             case 'diff':
             default:
-                $item->link = wl($id,'rev='.$date.'&do=diff',true,'&');
+                $item->link = $prefix.wl($id,'rev='.$date.'&do=diff',$abs,'&');
         }
 
         // add item content

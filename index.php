@@ -10,7 +10,23 @@ define('PHPDW_MODULE_NAME', basename(dirname(__FILE__)));
 
 require_once(PATH_PRE.'lib/dbman_lib.inc.php');
 $module='DokuWiki';
-if ($exporting=="yes") {
+if (isset($_REQUEST['modul'])) {
+    switch ($_REQUEST['modul']) {
+        case 'detail': 
+            echo "<div id='global-header'>";
+            echo get_tabs_area($tabs);
+            echo "</div>";
+            $__olddir = getcwd();
+            chdir( dirname(__FILE__) );
+            echo "<div id='global-content'>\n";
+            include_once "lib/exe/detail.php";
+            echo "</div>\n";
+            chdir($__olddir);
+            break;
+        default:
+            break;
+    }
+} elseif ($exporting=="yes") {
     include_once "doku.php";
 } else {
     $tabs=array();

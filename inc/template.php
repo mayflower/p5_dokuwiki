@@ -263,7 +263,7 @@ function tpl_metaheaders($alt=true, $js=true){
 
   if($alt){
     $head['link'][] = array( 'rel'=>'alternate', 'type'=>'application/rss+xml',
-                             'title'=>'Recent Changes', 'href'=>DOKU_BASE.'feed.php');
+                             'title'=>'Recent Changes', 'href'=>DOKU_BASE.DOKU_SUBDIR.'feed.php');
     $head['link'][] = array( 'rel'=>'alternate', 'type'=>'application/rss+xml',
                              'title'=>'Current Namespace',
                              'href'=>DOKU_BASE.DOKU_SUBDIR.'feed.php?mode=list&ns='.$INFO['namespace']);
