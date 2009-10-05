@@ -603,7 +603,7 @@ function media_uploadform($ns, $auth){
     if($auth < AUTH_UPLOAD) return; //fixme print info on missing permissions?
 
     // The default HTML upload form
-    $form = new Doku_Form('dw__upload', DOKU_BASE.basename(DOKU_INC).'/lib/exe/mediamanager.php', false, 'multipart/form-data');
+    $form = new Doku_Form('dw__upload', DOKU_BASE.DOKU_SUBDIR.'lib/exe/mediamanager.php', false, 'multipart/form-data');
     $form->addElement('<div class="upload">' . $lang['mediaupload'] . '</div>');
     $form->addElement(formSecurityToken());
     $form->addHidden('ns', hsc($ns));
@@ -640,7 +640,7 @@ function media_uploadform($ns, $auth){
         'L_filetypes' => $lang['mu_filetypes'],
 
         'O_ns'        => ":$ns",
-        'O_backend'   => 'mediamanager.php?'.session_name().'='.session_id(),
+        'O_backend'   => DOKU_BASE.DOKU_SUBDIR.'mediamanager.php?'.session_name().'='.session_id(),
         'O_size'      => php_to_byte(ini_get('upload_max_filesize')),
         'O_extensions'=> join('|',array_keys(getMimeTypes())),
         'O_overwrite' => ($auth >= AUTH_DELETE),
@@ -702,7 +702,7 @@ function media_nstree_item($item){
     if(!$item['label']) $item['label'] = $label;
 
     $ret  = '';
-    $ret .= '<a href="'.DOKU_BASE.DOKU_SUBDIR.'/lib/exe/mediamanager.php?ns='.idfilter($item['id']).'" class="idx_dir">';
+    $ret .= '<a href="'.DOKU_BASE.DOKU_SUBDIR.'lib/exe/mediamanager.php?ns='.idfilter($item['id']).'" class="idx_dir">';
     $ret .= $item['label'];
     $ret .= '</a>';
     return $ret;

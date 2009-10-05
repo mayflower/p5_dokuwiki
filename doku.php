@@ -13,8 +13,10 @@
       die();
   }
 
-  // limit to group "int", special for phprojekt.mayflower.de
-  if ($user_group != PHPDW_PERMIT_GROUP) 
+  /* This code is to limitate the dokuwiki plugin to only one group of the phprojekt. 
+   * The groupid is defined in the dokuwiki.inc.php file.
+  */
+  if (defined('PHPDW_PERMIT_GROUP') && $user_group != PHPDW_PERMIT_GROUP) 
     die('Currently there is no wiki for your group installed - please consult your system administrator');
   
   if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/');

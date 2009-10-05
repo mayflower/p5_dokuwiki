@@ -16,12 +16,13 @@
   require_once(DOKU_INC.'inc/pageutils.php');
 
 
-  // List of allowed IP's to get feed without authentication.
-  $allow_remote = array('127.0.0.1');
-  
-
+  if (key_exists('feed_allow_host', $conf)) {
+      $allow_remote = implode(',',$conf['feed_allow_host']);
+  } else {
+      $allow_remote = array();
+  }
   // check if sender is in the $allow_remote array.
-  if (!in_array($_SERVER['REMOTE_ADDR'],$allow_remote)) {
+  if (!in_array($_SERVER['REMOTE_ADDR'],$allow_remote) && !empty($allow_remote)) {
     $handle = fopen("feed_pw.csv", "r");
     while (($data = fgetcsv($handle, 10000, ";")) !== FALSE) {
       $userlist[$data[0]] = $data[1];

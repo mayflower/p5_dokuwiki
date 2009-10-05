@@ -34,7 +34,7 @@
     <?php/* everything in meta array is tried to save and read */?>
 
     <div class="data">
-      <form action="<?php echo DOKU_BASE.basename(DOKU_INC)."/"?>lib/exe/media.php" accept-charset="utf-8" method="post">
+      <form action="<?php echo DOKU_BASE.DOKU_SUBDIR?>lib/exe/media.php" accept-charset="utf-8" method="post">
         <input type="hidden" name="edit" value="<?php echo hsc($IMG)?>" />
         <input type="hidden" name="save" value="1" />
 

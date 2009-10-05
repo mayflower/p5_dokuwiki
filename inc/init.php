@@ -104,11 +104,14 @@
       }
     }
   }
-  $conf['subdir'] = '';
-  if (isset($conf['modulename'])) {
-    $conf['subdir'] = $conf['modulename'].'/';
+  
+  if (!defined(DOKU_SUBDIR)) {
+      if (isset($conf['modulename'])) {
+          define('DOKU_SUBDIR', $conf['modulename'].'/');
+      } else {
+          define('DOKU_SUBDIR', '');
+      }
   }
-  if (!defined(DOKU_SUBDIR)) define('DOKU_SUBDIR', $conf['subdir']);
 
   //prepare language array
   global $lang;

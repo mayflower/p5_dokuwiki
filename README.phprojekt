@@ -1,0 +1,42 @@
+This addon for Phprojekt has one great problem, 
+the dokuwiki is using UTF-8 encoding and change the HTTP header but Phprojekt 
+use mainly ISO-8859-1 but also other codepages. So on the left side 
+navigationbar of phprojekt every special char will not be displayed correct
+if dokuwiki addon is displayed. If some body find a solution please inform me
+(michele.catalano@mayflower.de)
+
+There are the central configurations statements in the dokuwiki.inc.php, conf/local.php
+
+dokuwiki.inc.php:
+    there are the define of the groupid to restrict the access for only one Phprojekt group to dokuwiki.
+    If you don't need to restrict the access on one phprojekt group remove the define line.
+    
+    
+conf/local.php
+    The follow configuration parameter are new with phprojekt addon mode:
+    
+        define('DOKU_BASE', '/addons/');
+            define here the url path for the addons directory.
+            
+        define('DOKU_SCRIPT', 'addon.php?addon=dokuwiki');
+            this define the rest of the url to run dokuwiki as addon of phprojekt
+            
+        $conf['modulename'] = 'dokuwiki';
+            this define the directory of the addon it is named dokuwiki.
+            
+        $conf['feed_allow_host'] = '127.0.0.1';
+            Here you can write a list of ipaddresse where can access the RSS feed without authentification.
+            if no ipaddresse are here than the access is allowed to any.
+            
+        require_once("phprojekt.conf.php");
+        $conf['authtype']    = 'phprojekt';
+            the configuration for accessing phprojekt mysql database and the definition to use the extra 
+            class for auth with phprojekt login.
+            
+There is a new authentications system for the feed.php with the authfile feed_pw.csv. 
+The Syntax of this file is:
+    loginstring;md5("loginstring;user_pw")
+    
+    loginstring and user_pw are the post|get parameter to authenticate on the feed.
+
+The feed_pw.csv has for example the loginstring (admin) and pw (admin) added as line.

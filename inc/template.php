@@ -1103,7 +1103,7 @@ function tpl_indexerWebBug(){
   if(isHiddenPage($ID)) return false; //no need to index hidden pages
 
   $p = array();
-  $p['src']    = DOKU_BASE.basename(DOKU_INC).'/lib/exe/indexer.php?id='.rawurlencode($ID).
+  $p['src']    = DOKU_BASE.DOKU_SUBDIR.'lib/exe/indexer.php?id='.rawurlencode($ID).
                  '&'.time();
   $p['width']  = 1;
   $p['height'] = 1;
@@ -1371,7 +1371,7 @@ function tpl_onlyjs() {
                                    '_data'=> $script);
     }
     $head['script'][] = array( 'type'=>'text/javascript', 'charset'=>'utf-8', '_data'=>'',
-                               'src'=>DOKU_BASE.basename(DOKU_INC).'/lib/exe/js.php?edit='.$js_edit.'&write='.$js_write);
+                               'src'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/js.php?edit='.$js_edit.'&write='.$js_write);
 
     // trigger event here
     trigger_event('TPL_METAHEADER_OUTPUT',$head,'_tpl_metaheaders_action',true);

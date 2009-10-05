@@ -445,7 +445,7 @@ function html_revisions($first=0){
     $form->addElement(form_makeCloseTag('span'));
 
     $form->addElement(form_makeTag('img', array(
-      'src' =>  DOKU_BASE.basename(DOKU_INC).'/lib/images/blank.gif',
+      'src' =>  DOKU_BASE.DOKU_SUBDIR.'lib/images/blank.gif',
       'width' => '15',
       'height' => '11',
       'alt'    => '')));
@@ -487,7 +487,7 @@ function html_revisions($first=0){
         'value' => $rev)));
     }else{
       $form->addElement(form_makeTag('img', array(
-        'src' => DOKU_BASE.basename(DOKU_INC).'/lib/images/blank.gif',
+        'src' => DOKU_BASE.DOKU_SUBDIR.'lib/images/blank.gif',
         'width' => 14,
         'height' => 11,
         'alt' => '')));
@@ -512,7 +512,7 @@ function html_revisions($first=0){
       $form->addElement(form_makeCloseTag('a'));
     }else{
       $form->addElement(form_makeTag('img', array(
-        'src' => DOKU_BASE.basename(DOKU_INC).'/lib/images/blank.gif',
+        'src' => DOKU_BASE.DOKU_SUBDIR.'lib/images/blank.gif',
         'width' => '15',
         'height' => '11',
         'alt'   => '')));
@@ -612,7 +612,7 @@ function html_recent($first=0){
 
     $form->addElement(form_makeOpenTag('a', array('class' => 'diff_link', 'href' => wl($recent['id'],"do=diff", false, '&'))));
     $form->addElement(form_makeTag('img', array(
-      'src'   => DOKU_BASE.basename(DOKU_INC).'/lib/images/diff.png',
+      'src'   => DOKU_BASE.DOKU_SUBDIR.'lib/images/diff.png',
       'width' => 15,
       'height'=> 11,
       'title' => $lang['diff'],
@@ -622,7 +622,7 @@ function html_recent($first=0){
 
     $form->addElement(form_makeOpenTag('a', array('class' => 'revisions_link', 'href' => wl($recent['id'],"do=revisions",false,'&'))));
     $form->addElement(form_makeTag('img', array(
-      'src'   => DOKU_BASE.basename(DOKU_INC).'/lib/images/history.png',
+      'src'   => DOKU_BASE.DOKU_SUBDIR.'lib/images/history.png',
       'width' => 12,
       'height'=> 14,
       'title' => $lang['btn_revs'],
@@ -1178,7 +1178,7 @@ function html_edit($text=null,$include='edit'){ //FIXME: include needed?
 
    <div class="toolbar">
       <div id="draft__status"><?php if(!empty($INFO['draft'])) echo $lang['draftdate'].' '.strftime($conf['dformat']);?></div>
-      <div id="tool__bar"><?php if($wr){?><a href="<?php echo DOKU_BASE.basename(DOKU_INC).'/'?>lib/exe/mediamanager.php?ns=<?php echo $INFO['namespace']?>"
+      <div id="tool__bar"><?php if($wr){?><a href="<?php echo DOKU_BASE.DOKU_SUBDIR?>lib/exe/mediamanager.php?ns=<?php echo $INFO['namespace']?>"
       target="_blank"><?php echo $lang['mediaselect'] ?></a><?php }?></div>
 
       <?php if($wr){?>

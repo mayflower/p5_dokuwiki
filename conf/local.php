@@ -1,25 +1,19 @@
 <?php
-
-$conf['lang']        = 'de';              //your language
-$conf['youarehere']  = 1;                 //show "You are here" navigation? 0|1
-$conf['allowdebug']  = 0;                 //allow debug output, enable if needed 0|1
-$conf['htmlok']      = 1;                 //may raw HTML be embedded? This may break layout and XHTML validity 0|1
-$conf['useheading']  = 1;                 //use the first heading in a page as its name
-$conf['camelcase']   = 0;                 //Use CamelCase for linking? (I don't like it) 0|1
-$conf['template']    = 'sidebar';         //see tpl directory
-$conf['useacl']      = 1;                //Use Access Control Lists to restrict access?
-$conf['autopasswd']  = 0;                //autogenerate passwords and email them to user
-$conf['authtype']    = 'phprojekt';          //which authentication backend should be used
-$conf['passcrypt']   = 'crypt';           //Used crypt method (smd5,md5,sha1,ssha,crypt,mysql,my411)
-$conf['defaultgroup']= 'default';           //Default groups new Users are added to
-$conf['openregister'] = '';
+// Use the special auth class for phprojekt.
+$conf['authtype']    = 'phprojekt';   //which authentication backend should be used
 
 // Change the DOKU_BASE here if you don't install the phprojekt in the webserver root!!
 define('DOKU_BASE', '/addons/');
+// This is the prefix for every url in the phprojekt context.
 define('DOKU_SCRIPT', 'addon.php?addon=dokuwiki');
+// Here is the name of the directory in the addons directory
 $conf['modulename'] = 'dokuwiki';
+// comma-seperated list of host address to restict access on the rss feed without auth.
+$conf['feed_allow_host'] = '127.0.0.1';
 
+// Include the configuration for phprojekt database connection.
 require_once("phprojekt.conf.php");
 
+// Set the superuser and manager config on the end of the local.php
 $conf['superuser']   = 'root';    //The admin can be user or @group
 $conf['manager']     = 'root';    //The manager can be user or @group

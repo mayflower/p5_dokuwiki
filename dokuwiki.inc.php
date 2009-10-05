@@ -1,5 +1,8 @@
 <?php
 
+// Define the PHProjekt group where will be allowed to see the dokuwiki.
+// You can also ignore this setting if you don't need to restrict,
+// the access to one phprojekt group
 define('PHPDW_PERMIT_GROUP', 2);
 
 $__olddir = getcwd();
@@ -13,6 +16,9 @@ require_once(DOKU_INC.'inc/html.php');
 require_once(DOKU_INC.'inc/auth.php');
 require_once(DOKU_INC.'inc/actions.php');
 
+// Get the statements where will be set in the head section of html.
+// and write it to the $GLOBAL['he_add'] array from where PHProjekt add then to the
+// Header.
 ob_start();
 tpl_metaheaders(true,false);
 $__headers = ob_get_contents();
