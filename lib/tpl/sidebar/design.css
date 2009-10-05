@@ -216,7 +216,7 @@ div.dokuwiki h1 a, div.dokuwiki h2 a, div.dokuwiki h3 a, div.dokuwiki h4 a, div.
 
 /* external link */
 div.dokuwiki a.urlextern{
-    background: transparent url(/addons/dokuwiki/lib/tpl/sidebar/images/link_icon.gif) 0px 1px no-repeat;
+    background: transparent url(images/link_icon.gif) 0px 1px no-repeat;
     padding: 1px 0px 1px 16px;
     color:__extern__;
     text-decoration:none;
@@ -230,7 +230,7 @@ div.dokuwiki a.urlextern:hover {
 
 /* windows share */
 div.dokuwiki a.windows{
-    background: transparent url(/addons/dokuwiki/lib/tpl/sidebar/images/windows.gif) 0px 1px no-repeat;
+    background: transparent url(images/windows.gif) 0px 1px no-repeat;
     padding: 1px 0px 1px 16px;
     color:__extern__;
     text-decoration:none;
@@ -266,7 +266,7 @@ div.dokuwiki a.media:hover {
 
 /* email link */
 div.dokuwiki a.mail {
-  background: transparent url(/addons/dokuwiki/lib/tpl/sidebar/images/mail_icon.gif) 0px 1px no-repeat;
+  background: transparent url(images/mail_icon.gif) 0px 1px no-repeat;
   padding: 1px 0px 1px 16px;
   color:__extern__;
   text-decoration:none;
@@ -411,12 +411,12 @@ div.dokuwiki ol ol ol {list-style-type: lower-alpha}
 div.dokuwiki ol ol ol ol {list-style-type: lower-greek}
 
 div.dokuwiki li.open {
-  list-style-image: url(/addons/dokuwiki/lib/tpl/sidebar/images/open.gif);
+  list-style-image: url(images/open.gif);
     /*list-style-type: circle;*/
 }
 
 div.dokuwiki li.closed {
-  list-style-image: url(/addons/dokuwiki/lib/tpl/sidebar/images/closed.gif);
+  list-style-image: url(images/closed.gif);
     /*list-style-type: disc;*/
 }
 
@@ -527,7 +527,7 @@ div.dokuwiki ul.toc {
 }
 
 div.dokuwiki ul.toc li {
-  background: transparent url(/addons/dokuwiki/lib/tpl/sidebar/images/tocdot2.gif) 0 0.6em no-repeat;
+  background: transparent url(images/tocdot2.gif) 0 0.6em no-repeat;
   padding-left:0.4em;
 }
 

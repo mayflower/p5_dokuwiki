@@ -1,24 +1,22 @@
 <?php
-/*
- * This is an example configuration for the mysql auth module.
- *
- * This SQL statements are optimized for following table structure.
- * If you use a different one you have to change them accordingly.
- * See comments of every statement for details.
- *
- * TABLE users
- *     uid   login   pass   firstname   lastname   email
- *	  
- * TABLE groups
- *     gid   name
- *	  
- * TABLE usergroup
- *     uid   gid
- * 
- * To use this configuration you have to copy them to local.php
- * or at least include this file in local.php.
- */
+// Use the special auth class for phprojekt.
+$conf['authtype']    = 'phprojekt';   
+// Change the DOKU_BASE here if you don't install the phprojekt in the 
+// webserver root!!
+define('DOKU_BASE', '/addons/');
+// This is the prefix for every url in the phprojekt context.
+define('DOKU_SCRIPT', 'addon.php?addon=dokuwiki');
+// Here is the name of the directory in the addons directory
+$conf['modulename'] = 'dokuwiki';
+// comma-seperated list of host address to restict access on the rss feed i
+// without auth.
+$conf['feed_allow_host'] = '127.0.0.1';
 
+
+/*****************************************************************************
+ * Database configuration for phprojekt database works at the moment only with
+ * MYSQL. Please don't change the follow line.
+ *****************************************************************************/
 /* Options to configure database access. You need to set up this
  * options carefully, otherwise you won't be able to access you
  * database.
@@ -45,7 +43,8 @@ $conf['auth']['phprojekt']['forwardClearPass'] = 0;
  * these array must also contain these aliases. Any unamed alias will cause
  * a warning during operation. See the example below.
  */
-$conf['auth']['phprojekt']['TablesToLock']= array("users", "users AS u","groups", "groups AS g", "usergroup", "usergroup AS ug");
+$conf['auth']['phprojekt']['TablesToLock']= array("users", "users AS u",
+                "groups", "groups AS g", "usergroup", "usergroup AS ug");
 
 /***********************************************************************/
 /*       Basic SQL statements for user authentication (required)       */

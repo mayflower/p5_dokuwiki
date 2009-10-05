@@ -5,18 +5,23 @@ navigationbar of phprojekt every special char will not be displayed correct
 if dokuwiki addon is displayed. If some body find a solution please inform me
 (michele.catalano@mayflower.de)
 
-There are the central configurations statements in the dokuwiki.inc.php, conf/local.php
+There are the central configurations statements in the dokuwiki.inc.php, conf/phprojekt.php
+ATTANTION: the conf/phprojekt.php is included over the conf/local.php. Don't remove the 
+require_once statement!
 
 dokuwiki.inc.php:
     there are the define of the groupid to restrict the access for only one Phprojekt group to dokuwiki.
     If you don't need to restrict the access on one phprojekt group remove the define line.
     
     
-conf/local.php
+conf/phprojekt.php
     The follow configuration parameter are new with phprojekt addon mode:
     
         define('DOKU_BASE', '/addons/');
             define here the url path for the addons directory.
+            One example: 
+                phprojekt is installed under "http://localhost/special/phprojekt/" than
+                change the DOKU_BASE to '/special/phprojekt/addons/'
             
         define('DOKU_SCRIPT', 'addon.php?addon=dokuwiki');
             this define the rest of the url to run dokuwiki as addon of phprojekt
