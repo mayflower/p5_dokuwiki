@@ -1,0 +1,3 @@
+# Username and password in md5 hash (md5 from complete line with clear text password)
+# Please remove the first comment line for security reason.
+admin;a2c92df3c6fdc105194010e059f8ed8f

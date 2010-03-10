@@ -1,0 +1,68 @@
+/**
+ * Design elements for sidebar
+*/
+
+/* the document */
+div.dokuwiki div.page_with_sidebar {
+  margin-top: 4px;
+  margin-left:  0em;
+  margin-right: 0em;
+  padding-left: 1em;
+  text-align: left;
+  width: 75%;
+  float: left;
+  border-left: 1px solid __dark__;
+}
+
+div.dokuwiki pre {width: 100%;}
+
+
+/* ---- Sidebar ---- */
+div.dokuwiki div#sidebar {
+  margin-top: 1em;
+  margin-left:  0em;
+  margin-right: -1px;
+  border-right: 1px solid __dark__;
+  padding-top: 0.5em;
+  padding-bottom: 0.7em;
+  padding-left: 0em;
+  text-align: left;
+  float: left;
+  background-color: __lightgray__;
+  width: 20%;
+  font-size: 95%;
+}
+
+div.dokuwiki #sidebar ul {
+  list-style-type: none;
+  list-style-image: none;
+  line-height: 1.2em;
+  margin: 0;
+  padding: 0;
+  padding-left: 1em;
+}
+
+div.dokuwiki #sidebar ul li {
+  background: transparent url(/addons/dokuwiki/lib/tpl/sidebar/images/tocdot2.gif) 0 0.6em no-repeat;
+  padding-left:0.4em;
+}
+
+div.dokuwiki #sidebar ul li.clear {
+  background-image: none;
+  padding-left:0.4em;
+}
+
+div.dokuwiki #sidebar a {
+  color: __extern__;
+  text-decoration:none;
+}
+
+div.dokuwiki #sidebar a:hover {
+  color: __black__;
+  text-decoration:underline; 
+}
+
+/* special headlines */
+div.dokuwiki #sidebar h1 {font-size: 100%; margin-left: 4px; margin-bottom: 0.5em; border-bottom: none;}
+
+

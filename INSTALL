@@ -1,0 +1,8 @@
+Installation for Dokuwiki V1.1 on PHProjekt 5.2.x:
+
+1. If the PHProjekt installation is not on the Webserver DocumentRoot, 
+   you must change the DOKU_BASE in conf/phprojekt.php
+   See README.phprojekt to get an detail description for the Parameters.
+
+All other special configuration parameters are descripted in the 
+README.phprojekt

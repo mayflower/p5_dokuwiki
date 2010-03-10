@@ -110,6 +110,14 @@ foreach (array('default','local','protected') as $config_group) {
     }
 }
 
+if (!defined(DOKU_SUBDIR)) {
+    if (isset($conf['modulename'])) {
+        define('DOKU_SUBDIR', $conf['modulename'].'/');
+    } else {
+        define('DOKU_SUBDIR', '');
+    }
+}
+
 //prepare language array
 global $lang;
 $lang = array();
@@ -163,7 +171,7 @@ if(!defined('DOKU_SCRIPT')) define('DOKU_SCRIPT','doku.php');
 
 // define Template baseURL
 if(!defined('DOKU_TPL')) define('DOKU_TPL',
-        DOKU_BASE.'lib/tpl/'.$conf['template'].'/');
+                                  DOKU_BASE.$conf['subdir'].'lib/tpl/'.$conf['template'].'/');
 
 // define real Template directory
 if(!defined('DOKU_TPLINC')) define('DOKU_TPLINC',

@@ -85,7 +85,7 @@ function js_out(){
     ob_start();
 
     // add some global variables
-    print "var DOKU_BASE   = '".DOKU_BASE."';";
+    print "var DOKU_BASE   = '".DOKU_BASE.DOKU_SUBDIR."';";
     print "var DOKU_TPL    = '".DOKU_TPL."';";
     print "var DOKU_UHN    = ".((int) useHeading('navigation')).";";
     print "var DOKU_UHC    = ".((int) useHeading('content')).";";

@@ -257,7 +257,7 @@ function tpl_metaheaders($alt=true){
     // the usual stuff
     $head['meta'][] = array( 'name'=>'generator', 'content'=>'DokuWiki '.getVersion() );
     $head['link'][] = array( 'rel'=>'search', 'type'=>'application/opensearchdescription+xml',
-            'href'=>DOKU_BASE.'lib/exe/opensearch.php', 'title'=>$conf['title'] );
+            'href'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/opensearch.php', 'title'=>$conf['title'] );
     $head['link'][] = array( 'rel'=>'start', 'href'=>DOKU_BASE );
     if(actionOK('index')){
         $head['link'][] = array( 'rel'=>'contents', 'href'=> wl($ID,'do=index',false,'&'),
@@ -266,10 +266,10 @@ function tpl_metaheaders($alt=true){
 
     if($alt){
         $head['link'][] = array( 'rel'=>'alternate', 'type'=>'application/rss+xml',
-                'title'=>'Recent Changes', 'href'=>DOKU_BASE.'feed.php');
+                'title'=>'Recent Changes', 'href'=>DOKU_BASE.DOKU_SUBDIR.'feed.php');
         $head['link'][] = array( 'rel'=>'alternate', 'type'=>'application/rss+xml',
                 'title'=>'Current Namespace',
-                'href'=>DOKU_BASE.'feed.php?mode=list&ns='.$INFO['namespace']);
+                'href'=>DOKU_BASE.DOKU_SUBDIR.'feed.php?mode=list&ns='.$INFO['namespace']);
         if(($ACT == 'show' || $ACT == 'search') && $INFO['writable']){
             $head['link'][] = array( 'rel'=>'edit',
                     'title'=>$lang['btn_edit'],
@@ -279,7 +279,7 @@ function tpl_metaheaders($alt=true){
         if($ACT == 'search'){
             $head['link'][] = array( 'rel'=>'alternate', 'type'=>'application/rss+xml',
                     'title'=>'Search Result',
-                    'href'=>DOKU_BASE.'feed.php?mode=search&q='.$QUERY);
+                    'href'=>DOKU_BASE.DOKU_SUBDIR.'feed.php?mode=search&q='.$QUERY);
         }
 
         if(actionOK('export_xhtml')){
@@ -331,11 +331,11 @@ function tpl_metaheaders($alt=true){
 
     // load stylesheets
     $head['link'][] = array('rel'=>'stylesheet', 'media'=>'screen', 'type'=>'text/css',
-            'href'=>DOKU_BASE.'lib/exe/css.php?t='.$conf['template'].'&tseed='.$tseed);
+            'href'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/css.php?t='.$conf['template'].'&tseed='.$tseed);
     $head['link'][] = array('rel'=>'stylesheet', 'media'=>'all', 'type'=>'text/css',
-            'href'=>DOKU_BASE.'lib/exe/css.php?s=all&t='.$conf['template'].'&tseed='.$tseed);
+            'href'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/css.php?s=all&t='.$conf['template'].'&tseed='.$tseed);
     $head['link'][] = array('rel'=>'stylesheet', 'media'=>'print', 'type'=>'text/css',
-            'href'=>DOKU_BASE.'lib/exe/css.php?s=print&t='.$conf['template'].'&tseed='.$tseed);
+            'href'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/css.php?s=print&t='.$conf['template'].'&tseed='.$tseed);
 
     // make $INFO and other vars available to JavaScripts
     require_once(DOKU_INC.'inc/JSON.php');
@@ -351,7 +351,7 @@ function tpl_metaheaders($alt=true){
 
     // load external javascript
     $head['script'][] = array( 'type'=>'text/javascript', 'charset'=>'utf-8', '_data'=>'',
-            'src'=>DOKU_BASE.'lib/exe/js.php'.'?tseed='.$tseed);
+            'src'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/js.php'.'?tseed='.$tseed);
 
     // trigger event here
     trigger_event('TPL_METAHEADER_OUTPUT',$head,'_tpl_metaheaders_action',true);
@@ -755,6 +755,7 @@ function tpl_searchform($ajax=true,$autocomplete=true){
     if (!actionOk('search')) return false;
 
     print '<form action="'.wl().'" accept-charset="utf-8" class="search" id="dw__search"><div class="no">';
+    print '<input type="hidden" name="addon" value="'.PHPDW_MODULE_NAME.'" />';
     print '<input type="hidden" name="do" value="search" />';
     print '<input type="text" ';
     if($ACT == 'search') print 'value="'.htmlspecialchars($QUERY).'" ';
@@ -1070,7 +1071,7 @@ function tpl_indexerWebBug(){
     if(isHiddenPage($ID)) return false; //no need to index hidden pages
 
     $p = array();
-    $p['src']    = DOKU_BASE.'lib/exe/indexer.php?id='.rawurlencode($ID).
+    $p['src']    = DOKU_BASE.DOKU_SUBDIR.'lib/exe/indexer.php?id='.rawurlencode($ID).
         '&'.time();
     $p['width']  = 1;
     $p['height'] = 1;
@@ -1408,6 +1409,48 @@ function tpl_subscribe() {
     html_form('SUBSCRIBE', $form);
     echo '</div>';
 }
+
+/**
+ * prints the javascripts lines to include the js also in the middle of the html
+ * 
+ * Only used in the phprojekt addon
+ * 
+ * @return bool
+ * @author Michele Catalano <michele.catalano@mayflower.de>
+ */
+function tpl_onlyjs() {
+    global $ID;
+    global $REV;
+    global $INFO;
+    global $ACT;
+    global $QUERY;
+    global $lang;
+    global $conf;
+    
+    // load javascript
+    $js_edit  = ($ACT=='edit' || $ACT=='preview' || $ACT=='recover' || $ACT=='wordblock' ) ? 1 : 0;
+    $js_write = ($INFO['writable']) ? 1 : 0;
+    if (defined('DOKU_MEDIAMANAGER')) {
+        $js_edit  = 1;
+        $js_write = 0;
+    }
+    if (($js_edit && $js_write) || defined('DOKU_MEDIAMANAGER')) {
+        $script = "NS='".$INFO['namespace']."';";
+        if($conf['useacl'] && $_SERVER['REMOTE_USER']){
+            require_once(DOKU_INC.'inc/toolbar.php');
+            $script .= "SIG='".toolbar_signature()."';";
+        }
+        $head['script'][] = array( 'type'=>'text/javascript', 'charset'=>'utf-8',
+                                   '_data'=> $script);
+    }
+    $head['script'][] = array( 'type'=>'text/javascript', 'charset'=>'utf-8', '_data'=>'',
+                               'src'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/js.php?edit='.$js_edit.'&write='.$js_write);
+
+    // trigger event here
+    trigger_event('TPL_METAHEADER_OUTPUT',$head,'_tpl_metaheaders_action',true);
+    return true;
+}
+
 
 //Setup VIM: ex: et ts=4 enc=utf-8 :
 

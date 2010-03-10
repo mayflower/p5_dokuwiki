@@ -8,7 +8,9 @@
 
 //  xdebug_start_profiling();
 
-if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/');
+// PHProjekt watch: only as logged in use accessible
+if (!isset($_SESSION['logged_in']) || !$_SESSION['logged_in']) {
+      die();
 
 if (isset($_SERVER['HTTP_X_DOKUWIKI_DO'])){
     $ACT = trim(strtolower($_SERVER['HTTP_X_DOKUWIKI_DO']));
@@ -20,6 +22,13 @@ if (isset($_SERVER['HTTP_X_DOKUWIKI_DO'])){
     $ACT = 'show';
 }
 
+  /* This code is to limitate the dokuwiki plugin to only one group of the phprojekt. 
+   * The groupid is defined in the dokuwiki.inc.php file.
+  */
+  if (defined('PHPDW_PERMIT_GROUP') && $user_group != PHPDW_PERMIT_GROUP) 
+    die('Currently there is no wiki for your group installed - please consult your system administrator');
+  
+  if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/');
 require_once(DOKU_INC.'inc/init.php');
 require_once(DOKU_INC.'inc/common.php');
 require_once(DOKU_INC.'inc/events.php');
