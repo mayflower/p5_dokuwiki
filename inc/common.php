@@ -7,13 +7,6 @@
  */
 
 if(!defined('DOKU_INC')) die('meh.');
-require_once(DOKU_INC.'inc/io.php');
-require_once(DOKU_INC.'inc/changelog.php');
-require_once(DOKU_INC.'inc/utf8.php');
-require_once(DOKU_INC.'inc/mail.php');
-require_once(DOKU_INC.'inc/parserutils.php');
-require_once(DOKU_INC.'inc/infoutils.php');
-require_once DOKU_INC.'inc/subscription.php';
 
 /**
  * These constants are used with the recents function
@@ -165,7 +158,7 @@ function pageinfo(){
     }else{
         $info['writable'] = ($info['perm'] >= AUTH_CREATE);
     }
-    $info['editable']  = ($info['writable'] && empty($info['lock']));
+    $info['editable']  = ($info['writable'] && empty($info['locked']));
     $info['lastmod']   = @filemtime($info['filepath']);
 
     //load page meta data
@@ -907,22 +900,24 @@ function parsePageTemplate($data) {
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function rawWikiSlices($range,$id,$rev=''){
-    list($from,$to) = explode('-',$range,2);
     $text = io_readWikiPage(wikiFN($id, $rev), $id, $rev);
-    if(!$from) $from = 0;
-    if(!$to)   $to   = strlen($text)+1;
 
-    $slices[0] = substr($text,0,$from-1);
-    $slices[1] = substr($text,$from-1,$to-$from);
-    $slices[2] = substr($text,$to);
+    // Parse range
+    list($from,$to) = explode('-',$range,2);
+    // Make range zero-based, use defaults if marker is missing
+    $from = !$from ? 0 : ($from - 1);
+    $to   = !$to ? strlen($text) : ($to - 1);
 
+    $slices[0] = substr($text, 0, $from);
+    $slices[1] = substr($text, $from, $to-$from);
+    $slices[2] = substr($text, $to);
     return $slices;
 }
 
 /**
  * Joins wiki text slices
  *
- * function to join the text slices with correct lineendings again.
+ * function to join the text slices.
  * When the pretty parameter is set to true it adds additional empty
  * lines between sections if needed (used on saving).
  *
@@ -930,13 +925,16 @@ function rawWikiSlices($range,$id,$rev=''){
  */
 function con($pre,$text,$suf,$pretty=false){
     if($pretty){
-        if($pre && substr($pre,-1) != "\n") $pre .= "\n";
-        if($suf && substr($text,-1) != "\n") $text .= "\n";
+        if ($pre !== '' && substr($pre, -1) !== "\n" &&
+            substr($text, 0, 1) !== "\n") {
+            $pre .= "\n";
+        }
+        if ($suf !== '' && substr($text, -1) !== "\n" &&
+            substr($suf, 0, 1) !== "\n") {
+            $text .= "\n";
+        }
     }
 
-    // Avoid double newline above section when saving section edit
-    //if($pre) $pre .= "\n";
-    if($suf) $text .= "\n";
     return $pre.$text.$suf;
 }
 
@@ -1037,7 +1035,6 @@ function saveWikiText($id,$text,$summary,$minor=false){
 
     // if useheading is enabled, purge the cache of all linking pages
     if(useHeading('content')){
-        require_once(DOKU_INC.'inc/fulltext.php');
         $pages = ft_backlinks($id);
         foreach ($pages as $page) {
             $cache = new cache_renderer($page, wikiFN($page), 'xhtml');
@@ -1125,7 +1122,6 @@ function notify($id,$who,$rev='',$summary='',$minor=false,$replace=array()){
     }elseif($rev){
         $subject = $lang['mail_changed'].' '.$id;
         $text = str_replace('@OLDPAGE@',wl($id,"rev=$rev",true,'&'),$text);
-        require_once(DOKU_INC.'inc/DifferenceEngine.php');
         $df  = new Diff(explode("\n",rawWiki($id,$rev)),
                         explode("\n",rawWiki($id)));
         $dformat = new UnifiedDiffFormatter();

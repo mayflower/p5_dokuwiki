@@ -338,11 +338,9 @@ function tpl_metaheaders($alt=true){
             'href'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/css.php?s=print&t='.$conf['template'].'&tseed='.$tseed);
 
     // make $INFO and other vars available to JavaScripts
-    require_once(DOKU_INC.'inc/JSON.php');
     $json = new JSON();
     $script = "var NS='".$INFO['namespace']."';";
     if($conf['useacl'] && $_SERVER['REMOTE_USER']){
-        require_once(DOKU_INC.'inc/toolbar.php');
         $script .= "var SIG='".toolbar_signature()."';";
     }
     $script .= 'var JSINFO = '.$json->encode($JSINFO).';';
@@ -1308,14 +1306,14 @@ function tpl_license($img='badge',$imgonly=false,$return=false){
         $src = license_img($img);
         if($src){
             $out .= '<a href="'.$lic['url'].'" rel="license"';
-            if($conf['target']['external']) $out .= ' target="'.$conf['target']['external'].'"';
+            if($conf['target']['extern']) $out .= ' target="'.$conf['target']['extern'].'"';
             $out .= '><img src="'.DOKU_BASE.$src.'" class="medialeft lic'.$img.'" alt="'.$lic['name'].'" /></a> ';
         }
     }
     if(!$imgonly) {
         $out .= $lang['license'];
         $out .= '<a href="'.$lic['url'].'" rel="license" class="urlextern"';
-        if(isset($conf['target']['external'])) $out .= ' target="'.$conf['target']['external'].'"';
+        if(isset($conf['target']['extern'])) $out .= ' target="'.$conf['target']['extern'].'"';
         $out .= '>'.$lic['name'].'</a>';
     }
     $out .= '</div>';

@@ -8,8 +8,6 @@
 
 if(!defined('DOKU_INC')) die('meh.');
 if(!defined('NL')) define('NL',"\n");
-require_once(DOKU_INC.'inc/parserutils.php');
-require_once(DOKU_INC.'inc/form.php');
 
 /**
  * Convenience function to quickly build a wikilink
@@ -315,8 +313,6 @@ function html_hilight_callback($m) {
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function html_search(){
-    require_once(DOKU_INC.'inc/search.php');
-    require_once(DOKU_INC.'inc/fulltext.php');
     global $conf;
     global $QUERY;
     global $ID;
@@ -709,7 +705,6 @@ function html_recent($first=0){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function html_index($ns){
-    require_once(DOKU_INC.'inc/search.php');
     global $conf;
     global $ID;
     $dir = $conf['datadir'];
@@ -847,7 +842,6 @@ function html_buildlist($data,$class,$func,$lifunc='html_li_default'){
  * @author Michael Klier <chi@chimeric.de>
  */
 function html_backlinks(){
-    require_once(DOKU_INC.'inc/fulltext.php');
     global $ID;
     global $conf;
     global $lang;
@@ -875,7 +869,6 @@ function html_backlinks(){
  * @author Andreas Gohr <andi@splitbrain.org>
  */
 function html_diff($text='',$intro=true){
-    require_once(DOKU_INC.'inc/DifferenceEngine.php');
     global $ID;
     global $REV;
     global $lang;
@@ -1130,6 +1123,8 @@ function html_updateprofile(){
  * Preprocess edit form data
  *
  * @author   Andreas Gohr <andi@splitbrain.org>
+ *
+ * @triggers HTML_EDITFORM_OUTPUT
  */
 function html_edit(){
     global $ID;
@@ -1142,6 +1137,7 @@ function html_edit(){
     global $lang;
     global $conf;
     global $TEXT;
+    global $RANGE;
 
     if (isset($_REQUEST['changecheck'])) {
         $check = $_REQUEST['changecheck'];
@@ -1176,14 +1172,25 @@ function html_edit(){
     $form->addHidden('suffix', $SUF);
     $form->addHidden('changecheck', $check);
 
-    $data = compact('wr', 'form');
-    $data['media_manager'] = true;
-    $data['intro_locale'] = $include;
-    trigger_event('HTML_EDIT_FORMSELECTION', $data, 'html_edit_form', true);
+    $data = array('form' => $form,
+                  'wr'   => $wr,
+                  'media_manager' => true,
+                  'target' => (isset($_REQUEST['target']) && $wr &&
+                               $RANGE !== '') ? $_REQUEST['target'] : 'section',
+                  'intro_locale' => $include);
+
+    if ($data['target'] !== 'section') {
+        // Only emit event if page is writable, section edit data is valid and
+        // edit target is not section.
+        trigger_event('HTML_EDIT_FORMSELECTION', $data, 'html_edit_form', true);
+    } else {
+        html_edit_form($data);
+    }
     if (isset($data['intro_locale'])) {
         echo p_locale_xhtml($data['intro_locale']);
     }
 
+    $form->addHidden('target', $data['target']);
     $form->addElement(form_makeOpenTag('div', array('id'=>'wiki__editbar')));
     $form->addElement(form_makeOpenTag('div', array('id'=>'size__ctl')));
     $form->addElement(form_makeCloseTag('div'));
@@ -1204,7 +1211,7 @@ function html_edit(){
         $form->addElement(form_makeOpenTag('div', array('class'=>'license')));
         $out  = $lang['licenseok'];
         $out .= '<a href="'.$license[$conf['license']]['url'].'" rel="license" class="urlextern"';
-        if(isset($conf['target']['external'])) $out .= ' target="'.$conf['target']['external'].'"';
+        if(isset($conf['target']['extern'])) $out .= ' target="'.$conf['target']['extern'].'"';
         $out .= '> '.$license[$conf['license']]['name'].'</a>';
         $form->addElement($out);
         $form->addElement(form_makeCloseTag('div'));
@@ -1212,9 +1219,9 @@ function html_edit(){
 
     if ($wr) {
         // sets changed to true when previewed
-        echo '<script type="text/javascript" charset="utf-8"><!--//--><![CDATA[//><!--';
+        echo '<script type="text/javascript" charset="utf-8"><!--//--><![CDATA[//><!--'. NL;
         echo 'textChanged = ' . ($mod ? 'true' : 'false');
-        echo '//--><!]]></script>';
+        echo '//--><!]]></script>' . NL;
     } ?>
     <div style="width:99%;">
 
@@ -1234,15 +1241,18 @@ function html_edit(){
  * Display the default edit form
  *
  * Is the default action for HTML_EDIT_FORMSELECTION.
- *
- * @triggers HTML_EDITFORM_OUTPUT
  */
 function html_edit_form($param) {
     global $TEXT;
-    extract($param);
+
+    if ($param['target'] !== 'section') {
+        msg('No editor for edit target ' . $param['target'] . ' found.', -1);
+    }
+
     $attr = array('tabindex'=>'1');
-    if (!$wr) $attr['readonly'] = 'readonly';
-    $form->addElement(form_makeWikiText($TEXT, $attr));
+    if (!$param['wr']) $attr['readonly'] = 'readonly';
+
+    $param['form']->addElement(form_makeWikiText($TEXT, $attr));
 }
 
 /**

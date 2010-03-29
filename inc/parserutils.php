@@ -8,10 +8,6 @@
  */
 
 if(!defined('DOKU_INC')) die('meh.');
-require_once(DOKU_INC.'inc/confutils.php');
-require_once(DOKU_INC.'inc/pageutils.php');
-require_once(DOKU_INC.'inc/pluginutils.php');
-require_once(DOKU_INC.'inc/cache.php');
 
 /**
  * Returns the parsed Wikitext in XHTML for the given id and revision.
@@ -226,7 +222,7 @@ function p_get_instructions($text){
  *
  * @author Esther Brunner <esther@kaffeehaus.ch>
  */
-function p_get_metadata($id, $key=false, $render=false){
+function p_get_metadata($id, $key='', $render=false){
     global $ID, $INFO, $cache_metadata;
 
     // cache the current page
@@ -245,19 +241,16 @@ function p_get_metadata($id, $key=false, $render=false){
         if (!empty($INFO) && ($id == $INFO['id'])) { $INFO['meta'] = $meta['current']; }
     }
 
+    $val = $meta['current'];
+
     // filter by $key
-    if ($key){
-        list($key, $subkey) = explode(' ', $key, 2);
-        $subkey = trim($subkey);
-
-        if ($subkey) {
-            return isset($meta['current'][$key][$subkey]) ? $meta['current'][$key][$subkey] : null;
+    foreach(preg_split('/\s+/', $key, 2, PREG_SPLIT_NO_EMPTY) as $cur_key) {
+        if (!isset($val[$cur_key])) {
+            return null;
         }
-
-        return isset($meta['current'][$key]) ? $meta['current'][$key] : null;
+        $val = $val[$cur_key];
     }
-
-    return $meta['current'];
+    return $val;
 }
 
 /**
@@ -647,8 +640,6 @@ function p_xhtml_cached_geshi($code, $language, $wrapper='pre') {
         $highlighted_code = io_readFile($cache, false);
 
     } else {
-
-        require_once(DOKU_INC . 'inc/geshi.php');
 
         $geshi = new GeSHi($code, $language, DOKU_INC . 'inc/geshi');
         $geshi->set_encoding('utf-8');

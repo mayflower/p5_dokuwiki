@@ -20,6 +20,9 @@ if (@file_exists($preload)) include($preload);
 // define the include path
 if(!defined('DOKU_INC')) define('DOKU_INC',fullpath(dirname(__FILE__).'/../').'/');
 
+// define Plugin dir
+if(!defined('DOKU_PLUGIN'))  define('DOKU_PLUGIN',DOKU_INC.'lib/plugins/');
+
 // define config path (packagers may want to change this to /etc/dokuwiki/)
 if(!defined('DOKU_CONF')) define('DOKU_CONF',DOKU_INC.'conf/');
 
@@ -163,8 +166,6 @@ if(!defined('DOKU_TAB')) define ('DOKU_TAB',"\t");
 // define cookie and session id, append server port when securecookie is configured FS#1664
 if (!defined('DOKU_COOKIE')) define('DOKU_COOKIE', 'DW'.md5(DOKU_REL.(($conf['securecookie'])?$_SERVER['SERVER_PORT']:'')));
 
-// define Plugin dir
-if(!defined('DOKU_PLUGIN'))  define('DOKU_PLUGIN',DOKU_INC.'lib/plugins/');
 
 // define main script
 if(!defined('DOKU_SCRIPT')) define('DOKU_SCRIPT','doku.php');
@@ -253,6 +254,25 @@ init_files();
 scriptify(DOKU_CONF.'users.auth');
 scriptify(DOKU_CONF.'acl.auth');
 
+// setup plugin controller class (can be overwritten in preload.php)
+$plugin_types = array('admin','syntax','action','renderer', 'helper');
+global $plugin_controller_class, $plugin_controller;
+if (empty($plugin_controller_class)) $plugin_controller_class = 'Doku_Plugin_Controller';
+
+// load libraries
+require_once(DOKU_INC.'inc/load.php');
+
+// initialize plugin controller
+$plugin_controller = new $plugin_controller_class();
+
+// initialize the event handler
+global $EVENT_HANDLER;
+$EVENT_HANDLER = new Doku_Event_Handler();
+
+// setup authentication system
+if (!defined('NOSESSION')) {
+    auth_setup();
+}
 
 /**
  * Checks paths from config file
@@ -534,7 +554,6 @@ EOT;
     exit;
 }
 
-
 /**
  * A realpath() replacement
  *
@@ -595,6 +614,4 @@ function fullpath($path,$exists=false){
     }
     return $finalpath;
 }
-
-
 
