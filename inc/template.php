@@ -1450,5 +1450,18 @@ function tpl_onlyjs() {
 }
 
 
+/**
+ * Tries to send already created content right to the browser
+ *
+ * Wraps around ob_flush() and flush()
+ *
+ * @author Andreas Gohr <andi@splitbrain.org>
+ */
+function tpl_flush(){
+    ob_flush();
+    flush();
+}
+
+
 //Setup VIM: ex: et ts=4 enc=utf-8 :
 

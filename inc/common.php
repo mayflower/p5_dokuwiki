@@ -842,7 +842,7 @@ function pageTemplate($id){
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function parsePageTemplate($data) {
+function parsePageTemplate(&$data) {
     extract($data);
 
     global $USERINFO;
@@ -885,7 +885,7 @@ function parsePageTemplate($data) {
 
     // we need the callback to work around strftime's char limit
     $tpl = preg_replace_callback('/%./',create_function('$m','return strftime($m[0]);'),$tpl);
-
+    $data['tpl'] = $tpl;
     return $tpl;
 }
 
@@ -1112,6 +1112,8 @@ function notify($id,$who,$rev='',$summary='',$minor=false,$replace=array()){
     $text = str_replace('@DOKUWIKIURL@',DOKU_URL,$text);
     $text = str_replace('@SUMMARY@',$summary,$text);
     $text = str_replace('@USER@',$_SERVER['REMOTE_USER'],$text);
+    $text = str_replace('@NAME@',$INFO['userinfo']['name'],$text);
+    $text = str_replace('@MAIL@',$INFO['userinfo']['mail'],$text);
 
     foreach ($replace as $key => $substitution) {
         $text = str_replace('@'.strtoupper($key).'@',$substitution, $text);
