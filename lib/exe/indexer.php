@@ -362,6 +362,9 @@ function sendDigest() {
     $olduser  = $_SERVER['REMOTE_USER'];
 
     foreach($subscriptions as $id => $users) {
+        if (!subscription_lock($id)) {
+            continue;
+        }
         foreach($users as $data) {
             list($user, $style, $lastupdate) = $data;
             $lastupdate = (int) $lastupdate;
@@ -408,6 +411,7 @@ function sendDigest() {
             // Update notification time.
             subscription_set($user, $id, $style, time(), true);
         }
+        subscription_unlock($id);
     }
 
     // restore current user info
