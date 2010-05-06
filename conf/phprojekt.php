@@ -6,6 +6,8 @@ $conf['authtype']    = 'phprojekt';
 define('DOKU_BASE', '/addons/');
 // This is the prefix for every url in the phprojekt context.
 define('DOKU_SCRIPT', 'addon.php?addon=dokuwiki');
+// This is the Base URL of the Phprojekt installation
+define('PHPR_BASE_URL', 'https://phprojekt.mayflower.de');
 // Here is the name of the directory in the addons directory
 $conf['modulename'] = 'dokuwiki';
 // comma-seperated list of host address to restict access on the rss feed i

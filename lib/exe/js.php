@@ -7,6 +7,15 @@
  */
 
 if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/../../');
+
+// PHPROJEKT STUFF
+// authentification etc.
+if (!defined('PATH_PRE')) {
+    define('PATH_PRE','../../../../');
+    require_once(PATH_PRE.'lib/lib.inc.php');
+}
+// END PHPROJEKT STUFF
+
 if(!defined('NOSESSION')) define('NOSESSION',true); // we do not use a session or authentication here (better caching)
 if(!defined('NL')) define('NL',"\n");
 if(!defined('DOKU_DISABLE_GZIP_OUTPUT')) define('DOKU_DISABLE_GZIP_OUTPUT',1); // we gzip ourself here

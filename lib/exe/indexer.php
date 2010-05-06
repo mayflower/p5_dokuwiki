@@ -7,6 +7,15 @@
  */
 if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/../../');
 define('DOKU_DISABLE_GZIP_OUTPUT',1);
+
+// PHPROJEKT STUFF
+// authentification etc.
+if (!defined('PATH_PRE')) {
+    define('PATH_PRE','../../../../');
+    require_once(PATH_PRE.'lib/lib.inc.php');
+}
+// END PHPROJEKT STUFF
+
 require_once(DOKU_INC.'inc/init.php');
 session_write_close();  //close session
 if(!defined('NL')) define('NL',"\n");

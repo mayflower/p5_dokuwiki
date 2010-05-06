@@ -12,6 +12,15 @@ if(!count($_POST) && $HTTP_RAW_POST_DATA){
 }
 
 if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/../../');
+
+// PHPROJEKT STUFF
+// authentification etc.
+if (!defined('PATH_PRE')) {
+    define('PATH_PRE','../../../../');
+    require_once(PATH_PRE.'lib/lib.inc.php');
+}
+// END PHPROJEKT STUFF
+
 require_once(DOKU_INC.'inc/init.php');
 //close session
 session_write_close();

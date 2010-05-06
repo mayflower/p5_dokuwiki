@@ -1,5 +1,14 @@
 <?php
   if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/../../');
+  
+  // PHPROJEKT STUFF
+  // authentification etc.
+  if (!defined('PATH_PRE')) {
+      define('PATH_PRE','../../../../');
+      require_once(PATH_PRE.'lib/lib.inc.php');
+  }
+  // END PHPROJEKT STUFF
+  
   define('DOKU_MEDIADETAIL',1);
   require_once(DOKU_INC.'inc/init.php');
   //close session

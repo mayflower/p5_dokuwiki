@@ -338,6 +338,7 @@ function tpl_metaheaders($alt=true){
             'href'=>DOKU_BASE.DOKU_SUBDIR.'lib/exe/css.php?s=print&t='.$conf['template'].'&tseed='.$tseed);
 
     // make $INFO and other vars available to JavaScripts
+    require_once(DOKU_INC.'inc/JSON.php');
     $json = new JSON();
     $script = "var NS='".$INFO['namespace']."';";
     if($conf['useacl'] && $_SERVER['REMOTE_USER']){

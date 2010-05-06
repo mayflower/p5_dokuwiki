@@ -2,6 +2,14 @@
     if(!defined('DOKU_INC')) define('DOKU_INC',dirname(__FILE__).'/../../');
     define('DOKU_MEDIAMANAGER',1);
 
+    // PHPROJEKT STUFF
+    // authentification etc.
+    if (!defined('PATH_PRE')) {
+        define('PATH_PRE','../../../../');
+        require_once(PATH_PRE.'lib/lib.inc.php');
+    }
+    // END PHPROJEKT STUFF
+
     // for multi uploader:
     @ini_set('session.use_only_cookies',0);
 
