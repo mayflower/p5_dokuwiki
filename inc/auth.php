@@ -107,7 +107,6 @@ function auth_setup(){
         //support user wildcard
         if(isset($_SERVER['REMOTE_USER'])){
             $AUTH_ACL = str_replace('%USER%',$_SERVER['REMOTE_USER'],$AUTH_ACL);
-            $AUTH_ACL = str_replace('@USER@',$_SERVER['REMOTE_USER'],$AUTH_ACL); //legacy
         }
     }
 }
@@ -320,9 +319,7 @@ function auth_logoff($keepbc=false){
         setcookie(DOKU_COOKIE,'',time()-600000,DOKU_REL,'',($conf['securecookie'] && is_ssl()));
     }
 
-    if($auth && $auth->canDo('logoff')){
-        $auth->logOff();
-    }
+    if($auth) $auth->logOff();
 }
 
 /**
@@ -570,6 +567,9 @@ function auth_nameencode($name,$skip_group=false){
     global $cache_authname;
     $cache =& $cache_authname;
     $name  = (string) $name;
+
+    // never encode wildcard FS#1955
+    if($name == '%USER%') return $name;
 
     if (!isset($cache[$name][$skip_group])) {
         if($skip_group && $name{0} =='@'){

@@ -45,7 +45,6 @@ function html_login(){
     global $lang;
     global $conf;
     global $ID;
-    global $auth;
 
     print p_locale_xhtml('login');
     print '<div class="centeralign">'.NL;
@@ -61,14 +60,14 @@ function html_login(){
     $form->addElement(form_makeButton('submit', '', $lang['btn_login']));
     $form->endFieldset();
 
-    if($auth && $auth->canDo('addUser') && actionOK('register')){
+    if(actionOK('register')){
         $form->addElement('<p>'
                           . $lang['reghere']
                           . ': <a href="'.wl($ID,'do=register').'" rel="nofollow" class="wikilink1">'.$lang['register'].'</a>'
                           . '</p>');
     }
 
-    if ($auth && $auth->canDo('modPass') && actionOK('resendpwd')) {
+    if (actionOK('resendpwd')) {
         $form->addElement('<p>'
                           . $lang['pwdforget']
                           . ': <a href="'.wl($ID,'do=resendpwd').'" rel="nofollow" class="wikilink1">'.$lang['btn_resendpwd'].'</a>'
@@ -219,7 +218,7 @@ function html_btn($name,$id,$akey,$params,$method='get',$tooltip=''){
  *
  * @author Andreas Gohr <andi@splitbrain.org>
  */
-function html_show($txt=''){
+function html_show($txt=null){
     global $ID;
     global $REV;
     global $HIGH;
@@ -231,7 +230,7 @@ function html_show($txt=''){
         $secedit = true;
     }
 
-    if ($txt){
+    if (!is_null($txt)){
         //PreviewHeader
         echo '<br id="scroll__here" />';
         echo p_locale_xhtml('preview');
@@ -339,18 +338,22 @@ function html_search(){
     //do quick pagesearch
     $data = array();
 
-    if($id) $data = ft_pageLookup($id);
+    if($id) $data = ft_pageLookup($id,true,useHeading('navigation'));
     if(count($data)){
         print '<div class="search_quickresult">';
         print '<h3>'.$lang['quickhits'].':</h3>';
         print '<ul class="search_quickhits">';
-        foreach($data as $id){
+        foreach($data as $id => $title){
             print '<li> ';
-            $ns = getNS($id);
-            if($ns){
-                $name = shorten(noNS($id), ' ('.$ns.')',30);
+            if (useHeading('navigation')) {
+                $name = $title;
             }else{
-                $name = $id;
+                $ns = getNS($id);
+                if($ns){
+                    $name = shorten(noNS($id), ' ('.$ns.')',30);
+                }else{
+                    $name = $id;
+                }
             }
             print html_wikilink(':'.$id,$name);
             print '</li> ';
